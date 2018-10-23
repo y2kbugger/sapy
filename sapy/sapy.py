@@ -34,9 +34,9 @@ class MemoryAddressRegister():
 
     def clock(self, data=None, lm=False, **kwargs):
         if lm:
+            assert not data is None
             if data > 0xF:
                 raise ValueError("Address bus limited to 4 bit")
-            assert not data is None
             self._address = data
 
     def address(self):
@@ -120,6 +120,10 @@ class ArithmeticUnit():
     def reset(self):
         pass
 
+    def clock(self, **kwargs):
+        # ArithmeticUnit is static realtime
+        pass
+
     def data(self, eu=False, su=False, **kwargs):
         if not eu:
             return None
@@ -185,29 +189,43 @@ class Clock():
         1: {'ep': True, 'lm': True},
         2: {'cp': True},
         3: {'er': True, 'li': True},
-        4: {'ei': True, 'lm': True},
+        4: {},
         5: {},
         6: {},
+        }
+
+    LDA = {
+        4: {'ei': True, 'lm': True},
+        5: {'er': True, 'la': True},
+        6: {},
+        }
+    opcode_microcode = {
+        0x0: LDA,
         }
 
     def __init__(self):
         self.components = []
 
     def reset(self):
+        self.t_state = 1
         for c in self.components:
             c.reset()
 
     def add_component(self, component):
         self.components.append(component)
 
+    def connect_opcode(self, opcode_function):
+        """Connect a function that returns the current opcode"""
+        self.opcode = opcode_function
+
     def data_bus(self, control_word):
         datas = []
         for c in self.components:
             d = c.data(**control_word)
+            print(c, d)
             if not d is None:
                 datas.append(d)
-        print(datas)
-        print(self.components)
+
         if len(datas) == 1:
             return datas[0]
         elif len(datas) == 0:
@@ -218,10 +236,13 @@ class Clock():
     def step(self, instructionwise=False):
         control_word = self.microcode[self.t_state]
         data = self.data_bus(control_word)
-        print(data)
+        print(f"{self.t_state}: {data}, {control_word}")
 
         for c in self.components:
             c.clock(data=data, **control_word)
+
+        if self.t_state == 3:
+            self.decode()
 
         self.t_state += 1
         if self.t_state > 6:
@@ -230,3 +251,9 @@ class Clock():
         # run until back to 1
         if instructionwise and self.t_state != 1:
             self.step(instructionwise=True)
+
+    def decode(self):
+        try:
+            self.microcode.update(self.opcode_microcode[self.opcode()])
+        except AttributeError:
+            print("No opcode function for decoding instruction attached")

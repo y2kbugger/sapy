@@ -291,26 +291,6 @@ def test_t3_transfers_instruction_from_ram_to_instruction_register():
 
     assert reg_i.value == 0x12
 
-def test_t4_transfers_instruction_address_to_mar():
-    clock = Clock()
-    reg_i = RegisterInstruction()
-    mar = MemoryAddressRegister()
-
-    clock.add_component(mar)
-    clock.add_component(reg_i)
-
-    # reset CPU
-    clock.reset()
-
-    # contrive for test
-    reg_i.clock(data=0x12, li=True) # 1 is opcode, 2 is address
-    clock.t_state = 4
-
-    # apply single clock cycle
-    clock.step()
-
-    assert mar.address() == 0x2 # Address nibble from the instruction register
-
 def test_clock_can_single_step():
     clock = Clock()
 
@@ -355,3 +335,51 @@ def test_clock_has_correct_number_of_t_states():
     assert clock.t_state == 6
     clock.step()
     assert clock.t_state == 1
+
+class Computer():
+    def __init__(self):
+        self.pc = ProgramCounter()
+        self.mar = MemoryAddressRegister()
+        self.ram = RandomAccessMemory(self.mar)
+
+        self.reg_a = RegisterA()
+        self.reg_b = RegisterB()
+        self.adder = ArithmeticUnit(self.reg_a, self.reg_b)
+
+        self.reg_o = RegisterOutput()
+        self.reg_i = RegisterInstruction()
+
+        self.switches = SwitchBoard(self.ram, self.mar)
+
+        clock = Clock()
+        self._clock = clock
+
+        clock.add_component(self.pc)
+        clock.add_component(self.mar)
+        clock.add_component(self.ram)
+        clock.add_component(self.reg_i)
+        clock.add_component(self.reg_a)
+        clock.add_component(self.reg_b)
+        clock.add_component(self.reg_o)
+        clock.add_component(self.adder)
+
+        clock.connect_opcode(self.reg_i.opcode)
+
+        # reset CPU
+        clock.reset()
+
+    def reset(self):
+        self._clock.reset()
+
+    def step(self, *args, **kwargs):
+        self._clock.step(*args, **kwargs)
+
+def test_opcode_lda():
+    pc = Computer()
+    program = [
+        0x01, # 0x0 LDA 1H
+        0xCC, # 0x1 CCH
+        ]
+    pc.switches.load_program(program)
+    pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0xCC
