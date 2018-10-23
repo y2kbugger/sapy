@@ -383,3 +383,53 @@ def test_opcode_lda():
     pc.switches.load_program(program)
     pc.step(instructionwise=True)
     assert pc.reg_a.value == 0xCC
+
+def test_opcode_add():
+    pc = Computer()
+    program = [
+        0x11, # 0x0 ADD 1H
+        0x22, # 0x1 22H
+        ]
+    pc.switches.load_program(program)
+    pc.reg_a.value = 0xCC
+    pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0xEE
+
+def test_opcode_sub():
+    pc = Computer()
+    program = [
+        0x21, # 0x0 SUB 1H
+        0x22, # 0x1 22H
+        ]
+    pc.switches.load_program(program)
+    pc.reg_a.value = 0xCC
+    pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0xAA
+
+def test_opcode_out():
+    pc = Computer()
+    program = [
+        0x30, # 0x0 OUT X
+        ]
+    pc.switches.load_program(program)
+    pc.reg_a.value = 0xF8
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0xF8
+
+def test_opcode_program_sequence():
+    pc = Computer()
+    program = [
+        0x04, # 0x0 LDA 4H
+        0x15, # 0x1 ADD 5H
+        0x30, # 0x2 OUT X
+        0xFF, # 0x3 HLT
+        0xA1, # 0x4 A1H
+        0x22, # 0x5 22H
+        ]
+    pc.switches.load_program(program)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0xC3

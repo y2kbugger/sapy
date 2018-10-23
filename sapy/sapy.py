@@ -199,8 +199,35 @@ class Clock():
         5: {'er': True, 'la': True},
         6: {},
         }
+    ADD = {
+        4: {'ei': True, 'lm': True},
+        5: {'er': True, 'lb': True},
+        6: {'eu': True, 'la': True},
+        }
+    SUB = {
+        4: {'ei': True, 'lm': True},
+        5: {'er': True, 'lb': True},
+        6: {'eu': True, 'la': True, 'su': True},
+        }
+    OUT = {
+        4: {'ea': True, 'lo': True},
+        5: {},
+        6: {},
+        }
+    HLT = {
+        1: {},
+        2: {},
+        3: {},
+        4: {},
+        5: {},
+        6: {},
+        }
     opcode_microcode = {
         0x0: LDA,
+        0x1: ADD,
+        0x2: SUB,
+        0x3: OUT,
+        0xF: HLT,
         }
 
     def __init__(self):
