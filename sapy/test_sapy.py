@@ -6,22 +6,33 @@ def test_program_counter_increments():
     pc = ProgramCounter()
 
     pc.clock()
-    assert pc.data(ep=True) == 0x00
+    assert pc.data(ep=True) == 0x0
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x01
+    assert pc.data(ep=True) == 0x1
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x02
+    assert pc.data(ep=True) == 0x2
+
+def test_program_counter_latches():
+    pc = ProgramCounter()
+
+    pc.clock()
+
+    pc.clock(data=0xD, lp=True)
+    assert pc.data(ep=True) == 0xD
+
+    pc.clock(cp=True)
+    assert pc.data(ep=True) == 0xE
 
 def test_program_counter_resets():
     pc = ProgramCounter()
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x01
+    assert pc.data(ep=True) == 0x1
 
     pc.reset()
-    assert pc.data(ep=True) == 0x00
+    assert pc.data(ep=True) == 0x0
 
 def test_program_counter_needs_ep():
     pc = ProgramCounter()
@@ -433,3 +444,30 @@ def test_opcode_program_sequence():
     pc.step(instructionwise=True)
     pc.step(instructionwise=True)
     assert pc.reg_o.value == 0xC3
+
+def test_opcode_jmp():
+    pc = Computer()
+    program = [
+        0x04, # 0x0 LDA 4H
+        0x15, # 0x1 ADD 5H
+        0x30, # 0x2 OUT X
+        0x41, # 0x3 JMP 1H
+        0x00, # 0x4 A1H
+        0x03, # 0x5 22H
+        ]
+    pc.switches.load_program(program)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x03
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x06
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x09
+    pc.step(instructionwise=True)

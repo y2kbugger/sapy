@@ -7,13 +7,16 @@ class ProgramCounter():
     def reset(self):
         self.counter = 0
 
-    def clock(self, cp=False, **kwargs):
+    def clock(self, data=None, cp=False, lp=False, **kwargs):
         """
         cp : bool
             Whether to increment program counter
         """
+        assert not (cp and lp) # either latch or increment
         if cp:
             self.counter += 1
+        elif lp:
+            self.counter = data
 
     def data(self, ep=False, **kwargs):
         if ep:
@@ -205,6 +208,11 @@ class Clock():
         5: {},
         6: {},
         }
+    JMP = {
+        4: {'ei': True, 'lp': True},
+        5: {},
+        6: {},
+        }
     HLT = {
         1: {},
         2: {},
@@ -218,6 +226,7 @@ class Clock():
         0x1: ADD,
         0x2: SUB,
         0x3: OUT,
+        0x4: JMP,
         0xF: HLT,
         }
 
