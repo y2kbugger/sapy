@@ -227,3 +227,23 @@ def test_clock_resets_components():
 
     clock.reset()
     assert c.reset_called
+
+def test_t1_transfers_pc_to_mar():
+    clock = Clock()
+    pc = ProgramCounter()
+    mar = MemoryAddressRegister()
+
+    clock.add_component(pc)
+    clock.add_component(mar)
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    pc.counter = 0xC
+    clock.t_state = 1
+
+    # apply single clock cycle
+    clock.step()
+
+    assert mar.address() == 0xC

@@ -175,6 +175,10 @@ class RegisterInstruction():
         return (self.value & 0xF0) >> 4 # high nibble is the opcode
 
 class Clock():
+    microcode = {
+        1: {'ep': True, 'lm': True},
+        }
+
     def __init__(self):
         self.components = []
 
@@ -201,3 +205,10 @@ class Clock():
             raise RuntimeError("More than one component outputting to the data bus")
 
 
+    def step(self):
+        control_word = self.microcode[self.t_state]
+        data = self.data_bus(control_word)
+        print(data)
+
+        for c in self.components:
+            c.clock(data=data, **control_word)
