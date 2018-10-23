@@ -185,15 +185,6 @@ class SwitchBoard():
         self._ram.clock(data=self.data, lr=True)
 
 class Clock():
-    microcode = {
-        1: {'ep': True, 'lm': True},
-        2: {'cp': True},
-        3: {'er': True, 'li': True},
-        4: {},
-        5: {},
-        6: {},
-        }
-
     LDA = {
         4: {'ei': True, 'lm': True},
         5: {'er': True, 'la': True},
@@ -231,6 +222,15 @@ class Clock():
         }
 
     def __init__(self):
+        self.microcode = {
+            1: {'ep': True, 'lm': True},
+            2: {'cp': True},
+            3: {'er': True, 'li': True},
+            4: {},
+            5: {},
+            6: {},
+            }
+
         self.components = []
 
     def reset(self):
@@ -249,7 +249,7 @@ class Clock():
         datas = []
         for c in self.components:
             d = c.data(**control_word)
-            print(c, d)
+            # print(c, d)
             if not d is None:
                 datas.append(d)
 
@@ -263,7 +263,7 @@ class Clock():
     def step(self, instructionwise=False):
         control_word = self.microcode[self.t_state]
         data = self.data_bus(control_word)
-        print(f"{self.t_state}: {data}, {control_word}")
+        # print(f"{self.t_state}: {data}, {control_word}")
 
         for c in self.components:
             c.clock(data=data, **control_word)
