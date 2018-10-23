@@ -265,3 +265,28 @@ def test_t2_increments_pc():
     clock.step()
 
     assert pc.counter == 0xD
+
+def test_t3_transfers_instruction_from_ram_to_instruction_register():
+    clock = Clock()
+    reg_i = RegisterInstruction()
+    mar = MemoryAddressRegister()
+    ram = RandomAccessMemory(mar)
+
+    clock.add_component(mar)
+    clock.add_component(ram)
+    clock.add_component(reg_i)
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    switches = SwitchBoard(ram, mar)
+    program = [0xFA, 0x12]
+    switches.load_program(program)
+    mar.clock(data=0x1, lm=True) # get the second instruction next
+    clock.t_state = 3
+
+    # apply single clock cycle
+    clock.step()
+
+    assert reg_i.value == 0x12

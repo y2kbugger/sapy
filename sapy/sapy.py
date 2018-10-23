@@ -33,9 +33,9 @@ class MemoryAddressRegister():
         return None
 
     def clock(self, data=None, lm=False, **kwargs):
-        if data > 0xF:
-            raise ValueError("Address bus limited to 4 bit")
         if lm:
+            if data > 0xF:
+                raise ValueError("Address bus limited to 4 bit")
             assert not data is None
             self._address = data
 
@@ -184,6 +184,7 @@ class Clock():
     microcode = {
         1: {'ep': True, 'lm': True},
         2: {'cp': True},
+        3: {'er': True, 'li': True},
         }
 
     def __init__(self):
