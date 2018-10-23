@@ -186,6 +186,8 @@ class Clock():
         2: {'cp': True},
         3: {'er': True, 'li': True},
         4: {'ei': True, 'lm': True},
+        5: {},
+        6: {},
         }
 
     def __init__(self):
@@ -213,11 +215,18 @@ class Clock():
         elif len(datas) > 1:
             raise RuntimeError("More than one component outputting to the data bus")
 
-
-    def step(self):
+    def step(self, instructionwise=False):
         control_word = self.microcode[self.t_state]
         data = self.data_bus(control_word)
         print(data)
 
         for c in self.components:
             c.clock(data=data, **control_word)
+
+        self.t_state += 1
+        if self.t_state > 6:
+            self.t_state = 1
+
+        # run until back to 1
+        if instructionwise and self.t_state != 1:
+            self.step(instructionwise=True)

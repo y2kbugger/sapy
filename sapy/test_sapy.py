@@ -310,3 +310,48 @@ def test_t4_transfers_instruction_address_to_mar():
     clock.step()
 
     assert mar.address() == 0x2 # Address nibble from the instruction register
+
+def test_clock_can_single_step():
+    clock = Clock()
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    clock.t_state = 3
+
+    # apply single clock cycle
+    clock.step()
+    assert clock.t_state == 4
+
+def test_clock_can_instruction_step():
+    clock = Clock()
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    clock.t_state = 3
+
+    # apply single clock cycle
+    clock.step(instructionwise=True)
+    assert clock.t_state == 1
+
+def test_clock_has_correct_number_of_t_states():
+    clock = Clock()
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    clock.t_state = 3
+
+    # apply single clock cycle
+    clock.step()
+    assert clock.t_state == 4
+    clock.step()
+    assert clock.t_state == 5
+    clock.step()
+    assert clock.t_state == 6
+    clock.step()
+    assert clock.t_state == 1
