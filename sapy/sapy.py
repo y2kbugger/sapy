@@ -185,6 +185,7 @@ class Clock():
         1: {'ep': True, 'lm': True},
         2: {'cp': True},
         3: {'er': True, 'li': True},
+        4: {'ei': True, 'lm': True},
         }
 
     def __init__(self):

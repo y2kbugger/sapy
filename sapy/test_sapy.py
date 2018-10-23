@@ -290,3 +290,23 @@ def test_t3_transfers_instruction_from_ram_to_instruction_register():
     clock.step()
 
     assert reg_i.value == 0x12
+
+def test_t4_transfers_instruction_address_to_mar():
+    clock = Clock()
+    reg_i = RegisterInstruction()
+    mar = MemoryAddressRegister()
+
+    clock.add_component(mar)
+    clock.add_component(reg_i)
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    reg_i.clock(data=0x12, li=True) # 1 is opcode, 2 is address
+    clock.t_state = 4
+
+    # apply single clock cycle
+    clock.step()
+
+    assert mar.address() == 0x2 # Address nibble from the instruction register
