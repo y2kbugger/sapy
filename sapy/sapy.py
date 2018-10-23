@@ -1,3 +1,5 @@
+### Components ###
+
 class ProgramCounter():
     def __init__(self):
         self.reset()
@@ -58,29 +60,6 @@ class RandomAccessMemory():
             return self.values[self._mar.address()]
         else:
             return None
-
-class SwitchBoard():
-    def __init__(self, ram, mar):
-        self._ram = ram
-        self._mar = mar
-        self.reset()
-
-    def reset(self):
-        self.address = 0x0
-        self.data = 0x00
-
-    def load_program(self, program):
-        self.address = 0x0
-        for opcode in program:
-            self.data = opcode
-            self.write_ram()
-            self.address += 1
-
-    def write_ram(self):
-        # store address for ram in register
-        self._mar.clock(data=self.address, lm=True)
-        # clock data into ram at the address set above
-        self._ram.clock(data=self.data, lr=True)
 
 class RegisterA():
     def __init__(self):
@@ -174,6 +153,32 @@ class RegisterInstruction():
 
     def opcode(self):
         return (self.value & 0xF0) >> 4 # high nibble is the opcode
+
+
+### Controller Parts ###
+
+class SwitchBoard():
+    def __init__(self, ram, mar):
+        self._ram = ram
+        self._mar = mar
+        self.reset()
+
+    def reset(self):
+        self.address = 0x0
+        self.data = 0x00
+
+    def load_program(self, program):
+        self.address = 0x0
+        for opcode in program:
+            self.data = opcode
+            self.write_ram()
+            self.address += 1
+
+    def write_ram(self):
+        # store address for ram in register
+        self._mar.clock(data=self.address, lm=True)
+        # clock data into ram at the address set above
+        self._ram.clock(data=self.data, lr=True)
 
 class Clock():
     microcode = {
