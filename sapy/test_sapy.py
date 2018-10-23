@@ -247,3 +247,21 @@ def test_t1_transfers_pc_to_mar():
     clock.step()
 
     assert mar.address() == 0xC
+
+def test_t2_increments_pc():
+    clock = Clock()
+    pc = ProgramCounter()
+
+    clock.add_component(pc)
+
+    # reset CPU
+    clock.reset()
+
+    # contrive for test
+    pc.counter = 0xC
+    clock.t_state = 2
+
+    # apply single clock cycle
+    clock.step()
+
+    assert pc.counter == 0xD

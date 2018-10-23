@@ -34,6 +34,7 @@ class MemoryAddressRegister():
         if data > 0xF:
             raise ValueError("Address bus limited to 4 bit")
         if lm:
+            assert not data is None
             self._address = data
 
     def address(self):
@@ -177,6 +178,7 @@ class RegisterInstruction():
 class Clock():
     microcode = {
         1: {'ep': True, 'lm': True},
+        2: {'cp': True},
         }
 
     def __init__(self):
@@ -200,7 +202,7 @@ class Clock():
         if len(datas) == 1:
             return datas[0]
         elif len(datas) == 0:
-            raise RuntimeError("Nothing outputting to the data bus for this control word")
+            return None
         elif len(datas) > 1:
             raise RuntimeError("More than one component outputting to the data bus")
 
