@@ -100,16 +100,21 @@ class RegisterB():
 class RegisterOutput():
     def __init__(self):
         self.reset()
+        self.output_function = lambda x: print(f"Output Display: {x:X}")
 
     def reset(self):
         self.value = 0x00
+
+    def output_function(value):
+        print(f"Output: {value}")
 
     def clock(self, data=None,  lo=False, **kwargs):
         if lo:
             assert not data is None
             assert 0x00 <= data <= 0xFF
             self.value = data
-            print(f"Output: {self.value}")
+            self.output_function(self.value)
+
 
     def data(self, **kwargs):
         return None
@@ -241,6 +246,7 @@ class Clock():
             }
 
         self.components = []
+        self.reset()
 
     def reset(self):
         self.t_state = 1
@@ -269,10 +275,13 @@ class Clock():
         elif len(datas) > 1:
             raise RuntimeError("More than one component outputting to the data bus")
 
-    def step(self, instructionwise=False):
+    def step(self, instructionwise=False, debug=False):
         control_word = self.microcode[self.t_state]
         data = self.data_bus(control_word)
-        # print(f"{self.t_state}: {data}, {control_word}")
+        if debug:
+            if self.t_state == 1:
+                print('-' * 42)
+            print(f"T{self.t_state}: Data: {data}, Control Word: {control_word}")
 
         for c in self.components:
             c.clock(data=data, **control_word)
@@ -286,10 +295,50 @@ class Clock():
 
         # run until back to 1
         if instructionwise and self.t_state != 1:
-            self.step(instructionwise=True)
+            self.step(instructionwise=True, debug=debug)
 
     def decode(self):
         try:
             self.microcode.update(self.opcode_microcode[self.opcode()])
         except AttributeError:
             print("No opcode function for decoding instruction attached")
+
+
+class Computer():
+    def __init__(self):
+        self.pc = ProgramCounter()
+        self.mar = MemoryAddressRegister()
+        self.ram = RandomAccessMemory(self.mar)
+
+        self.reg_a = RegisterA()
+        self.reg_b = RegisterB()
+        self.adder = ArithmeticUnit(self.reg_a, self.reg_b)
+
+        self.reg_o = RegisterOutput()
+        self.reg_i = RegisterInstruction()
+
+        self.switches = SwitchBoard(self.ram, self.mar)
+
+        clock = Clock()
+        self._clock = clock
+
+        clock.add_component(self.pc)
+        clock.add_component(self.mar)
+        clock.add_component(self.ram)
+        clock.add_component(self.reg_i)
+        clock.add_component(self.reg_a)
+        clock.add_component(self.reg_b)
+        clock.add_component(self.reg_o)
+        clock.add_component(self.adder)
+
+        clock.connect_opcode(self.reg_i.opcode)
+
+        # reset CPU
+        clock.reset()
+
+    def reset(self):
+        self._clock.reset()
+
+    def step(self, *args, **kwargs):
+        self._clock.step(*args, **kwargs)
+

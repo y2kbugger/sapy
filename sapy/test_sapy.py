@@ -1,6 +1,6 @@
 import pytest
 
-from sapy import Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction
+from sapy import Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
 
 def test_program_counter_increments():
     pc = ProgramCounter()
@@ -346,44 +346,6 @@ def test_clock_has_correct_number_of_t_states():
     assert clock.t_state == 6
     clock.step()
     assert clock.t_state == 1
-
-class Computer():
-    def __init__(self):
-        self.pc = ProgramCounter()
-        self.mar = MemoryAddressRegister()
-        self.ram = RandomAccessMemory(self.mar)
-
-        self.reg_a = RegisterA()
-        self.reg_b = RegisterB()
-        self.adder = ArithmeticUnit(self.reg_a, self.reg_b)
-
-        self.reg_o = RegisterOutput()
-        self.reg_i = RegisterInstruction()
-
-        self.switches = SwitchBoard(self.ram, self.mar)
-
-        clock = Clock()
-        self._clock = clock
-
-        clock.add_component(self.pc)
-        clock.add_component(self.mar)
-        clock.add_component(self.ram)
-        clock.add_component(self.reg_i)
-        clock.add_component(self.reg_a)
-        clock.add_component(self.reg_b)
-        clock.add_component(self.reg_o)
-        clock.add_component(self.adder)
-
-        clock.connect_opcode(self.reg_i.opcode)
-
-        # reset CPU
-        clock.reset()
-
-    def reset(self):
-        self._clock.reset()
-
-    def step(self, *args, **kwargs):
-        self._clock.step(*args, **kwargs)
 
 def test_opcode_lda():
     pc = Computer()
