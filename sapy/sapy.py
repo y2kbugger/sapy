@@ -236,6 +236,11 @@ class Clock():
         }
 
     def __init__(self):
+        self.components = []
+        self.reset()
+
+    def reset(self):
+        self.t_state = 1
         self.microcode = {
             1: {'ep': True, 'lm': True},
             2: {'cp': True},
@@ -245,11 +250,6 @@ class Clock():
             6: {},
             }
 
-        self.components = []
-        self.reset()
-
-    def reset(self):
-        self.t_state = 1
         for c in self.components:
             c.reset()
 
