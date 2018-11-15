@@ -6,33 +6,33 @@ def test_program_counter_increments():
     pc = ProgramCounter()
 
     pc.clock()
-    assert pc.data(ep=True) == 0x0
+    assert pc.data(ep=True) == 0x00
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x1
+    assert pc.data(ep=True) == 0x01
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x2
+    assert pc.data(ep=True) == 0x02
 
 def test_program_counter_latches():
     pc = ProgramCounter()
 
     pc.clock()
 
-    pc.clock(data=0xD, lp=True)
-    assert pc.data(ep=True) == 0xD
+    pc.clock(data=0x0D, lp=True)
+    assert pc.data(ep=True) == 0x0D
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0xE
+    assert pc.data(ep=True) == 0x0E
 
 def test_program_counter_resets():
     pc = ProgramCounter()
 
     pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x1
+    assert pc.data(ep=True) == 0x01
 
     pc.reset()
-    assert pc.data(ep=True) == 0x0
+    assert pc.data(ep=True) == 0x00
 
 def test_program_counter_needs_ep():
     pc = ProgramCounter()
@@ -48,14 +48,14 @@ def test_memory_address_register_latches_data_on_lm():
 
     assert mar.data() == None
 
-    mar.clock(data=0xF, lm=True)
-    assert mar.address() == 0xF
+    mar.clock(data=0x0F, lm=True)
+    assert mar.address() == 0x0F
 
-    mar.clock(data=0x3, lm=True)
-    assert mar.address() == 0x3
+    mar.clock(data=0x03, lm=True)
+    assert mar.address() == 0x03
 
-    mar.clock(data=0xC, lm=False)
-    assert mar.address() == 0x3
+    mar.clock(data=0x0C, lm=False)
+    assert mar.address() == 0x03
 
 
 def test_ram_can_store_values():
@@ -63,8 +63,8 @@ def test_ram_can_store_values():
     ram = RandomAccessMemory(mar)
 
     # store address for ram in register
-    mar.clock(data=0xF, lm=True)
-    assert mar.address() == 0xF
+    mar.clock(data=0x0F, lm=True)
+    assert mar.address() == 0x0F
 
     # clock data into ram at the address set above
     ram.clock(data=0xAB, lr=True)
@@ -75,23 +75,23 @@ def test_ram_can_store_values():
     ram.clock(data=0xAA)
     assert ram.data(er=True) == 0xAB
 
-def test_addresses_must_be_4_bit():
+def test_addresses_must_be_8_bit():
     mar = MemoryAddressRegister()
     ram = RandomAccessMemory(mar)
 
-    fourbitmax = 0xF
+    bitmax = 0xFF
 
     # store address for ram in register
-    mar.clock(data=fourbitmax, lm=True)
-    assert mar.address() == fourbitmax
+    mar.clock(data=bitmax, lm=True)
+    assert mar.address() == bitmax
 
     with pytest.raises(ValueError):
-        mar.clock(data=fourbitmax + 1, lm=True)
+        mar.clock(data=bitmax + 1, lm=True)
 
 
 def test_switches_can_give_address_and_data():
     switches = SwitchBoard(ram=None, mar=None)
-    assert switches.address == 0x0
+    assert switches.address == 0x00
     assert switches.data == 0x00
 
 def test_switches_can_initialize_ram():
@@ -104,11 +104,11 @@ def test_switches_can_initialize_ram():
     switches.load_program(program)
 
     # set ram address
-    mar.clock(data=0x0, lm=True)
+    mar.clock(data=0x00, lm=True)
     assert ram.data(er=True) == 0xFA
-    mar.clock(data=0x1, lm=True)
+    mar.clock(data=0x01, lm=True)
     assert ram.data(er=True) == 0x12
-    mar.clock(data=0x0, lm=True)
+    mar.clock(data=0x00, lm=True)
     assert ram.data(er=True) == 0xFA
 
 def test_a_register_can_store_and_retrieve_values():
@@ -181,14 +181,14 @@ def test_arithmetic_unit_subtracts(a, b, expected):
     assert adder.data() is None
     assert adder.data(eu=True, su=True) == expected
 
-def test_instruction_register_splits_value():
+def test_instruction_register_doesnt_split_value():
     reg_i = RegisterInstruction()
     instruction = 0xCD # both opcode and argument, 8bits
     reg_i.clock(data=instruction, li=True)
     assert reg_i.value == instruction
-    assert reg_i.opcode() == 0xC # opcode
+    assert reg_i.opcode() == 0xCD # opcode
     assert reg_i.data() == None
-    assert reg_i.data(ei=True) == 0xD # address
+    assert reg_i.data(ei=True) == None # Doesn't make sense when switched to 8bit opcode and 2 byte instructions
 
 def test_clock_add_component():
     clock = Clock()
@@ -251,13 +251,13 @@ def test_t1_transfers_pc_to_mar():
     clock.reset()
 
     # contrive for test
-    pc.counter = 0xC
+    pc.counter = 0x0C
     clock.t_state = 1
 
     # apply single clock cycle
     clock.step()
 
-    assert mar.address() == 0xC
+    assert mar.address() == 0x0C
 
 def test_t2_increments_pc():
     clock = Clock()
@@ -269,13 +269,13 @@ def test_t2_increments_pc():
     clock.reset()
 
     # contrive for test
-    pc.counter = 0xC
+    pc.counter = 0x0C
     clock.t_state = 2
 
     # apply single clock cycle
     clock.step()
 
-    assert pc.counter == 0xD
+    assert pc.counter == 0x0D
 
 def test_t3_transfers_instruction_from_ram_to_instruction_register():
     clock = Clock()
@@ -294,7 +294,7 @@ def test_t3_transfers_instruction_from_ram_to_instruction_register():
     switches = SwitchBoard(ram, mar)
     program = [0xFA, 0x12]
     switches.load_program(program)
-    mar.clock(data=0x1, lm=True) # get the second instruction next
+    mar.clock(data=0x01, lm=True) # get the second instruction next
     clock.t_state = 3
 
     # apply single clock cycle
@@ -345,23 +345,25 @@ def test_clock_has_correct_number_of_t_states():
     clock.step()
     assert clock.t_state == 6
     clock.step()
+    assert clock.t_state == 7
+    clock.step()
     assert clock.t_state == 1
 
 def test_opcode_lda():
     pc = Computer()
     program = [
-        0x01, # 0x0 LDA 1H
-        0xCC, # 0x1 CCH
+        0x00, 0x02, # 0x00 LDA 02H
+        0xCC,       # 0x02 CCH
         ]
     pc.switches.load_program(program)
-    pc.step(instructionwise=True)
+    pc.step(instructionwise=True, debug=True)
     assert pc.reg_a.value == 0xCC
 
 def test_opcode_add():
     pc = Computer()
     program = [
-        0x11, # 0x0 ADD 1H
-        0x22, # 0x1 22H
+        0x01, 0x02, # 0x00 ADD 02H
+        0x22,       # 0x02 22H
         ]
     pc.switches.load_program(program)
     pc.reg_a.value = 0xCC
@@ -371,8 +373,8 @@ def test_opcode_add():
 def test_opcode_sub():
     pc = Computer()
     program = [
-        0x21, # 0x0 SUB 1H
-        0x22, # 0x1 22H
+        0x02, 0x02, # 0x00 SUB 02H
+        0x22,       # 0x02 22H
         ]
     pc.switches.load_program(program)
     pc.reg_a.value = 0xCC
@@ -382,7 +384,7 @@ def test_opcode_sub():
 def test_opcode_out():
     pc = Computer()
     program = [
-        0x30, # 0x0 OUT X
+        0x03, # 0x00 OUT
         ]
     pc.switches.load_program(program)
     pc.reg_a.value = 0xF8
@@ -392,12 +394,12 @@ def test_opcode_out():
 def test_opcode_program_sequence():
     pc = Computer()
     program = [
-        0x04, # 0x0 LDA 4H
-        0x15, # 0x1 ADD 5H
-        0x30, # 0x2 OUT X
-        0xFF, # 0x3 HLT
-        0xA1, # 0x4 A1H
-        0x22, # 0x5 22H
+        0x00, 0x06, # 0x00 LDA 06H
+        0x01, 0x07, # 0x02 ADD 07H
+        0x03,       # 0x04 OUT
+        0xFF,       # 0x05 HLT
+        0xA1,       # 0x06 A1H
+        0x22,       # 0x07 22H
         ]
     pc.switches.load_program(program)
     pc.step(instructionwise=True)
@@ -410,12 +412,12 @@ def test_opcode_program_sequence():
 def test_opcode_jmp():
     pc = Computer()
     program = [
-        0x04, # 0x0 LDA 4H
-        0x15, # 0x1 ADD 5H
-        0x30, # 0x2 OUT X
-        0x41, # 0x3 JMP 1H
-        0x00, # 0x4 A1H
-        0x03, # 0x5 22H
+        0x00, 0x07, # 0x00 LDA 07H
+        0x01, 0x08, # 0x20 ADD 08H
+        0x03,       # 0x04 OUT
+        0x04, 0x02, # 0x05 JMP 02H
+        0x00,       # 0x07 A1H
+        0x03,       # 0x08 22H
         ]
     pc.switches.load_program(program)
     pc.step(instructionwise=True)

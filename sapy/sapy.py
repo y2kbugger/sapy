@@ -29,7 +29,7 @@ class MemoryAddressRegister():
         self.reset()
 
     def reset(self):
-        self._address = 0x0
+        self._address = 0x00
 
     def data(self, **kwargs):
         # mar never outputs to the bus
@@ -38,8 +38,8 @@ class MemoryAddressRegister():
     def clock(self, data=None, lm=False, **kwargs):
         if lm:
             assert not data is None
-            if data > 0xF:
-                raise ValueError("Address bus limited to 4 bit")
+            if data > 0xFF:
+                raise ValueError("Address bus limited to 8 bit")
             self._address = data
 
     def address(self):
@@ -51,7 +51,7 @@ class RandomAccessMemory():
         self.reset()
 
     def reset(self):
-        self.values = {x: 0x00 for x in range(0xf + 1)} # 16 total values
+        self.values = {x: 0x00 for x in range(0xFF + 1)} # 256 total values
 
     def clock(self, data=None,  lr=False, **kwargs):
         if lr:
@@ -158,13 +158,11 @@ class RegisterInstruction():
             assert 0x00 <= data <= 0xFF
             self.value = data
 
-    def data(self, ei=False, **kwargs):
-        if ei:
-            # return self.value
-            return self.value & 0x0F # low nibble is the argument that goes to the bus
+    def data(self, **kwargs):
+        return None
 
     def opcode(self):
-        return (self.value & 0xF0) >> 4 # high nibble is the opcode
+        return self.value
 
 
 ### Controller Parts ###
@@ -176,11 +174,11 @@ class SwitchBoard():
         self.reset()
 
     def reset(self):
-        self.address = 0x0
+        self.address = 0x00
         self.data = 0x00
 
     def load_program(self, program):
-        self.address = 0x0
+        self.address = 0x00
         for opcode in program:
             self.data = opcode
             self.write_ram()
@@ -194,29 +192,34 @@ class SwitchBoard():
 
 class Clock():
     LDA = {
-        4: {'ei': True, 'lm': True},
-        5: {'er': True, 'la': True},
-        6: {},
+        4: {'ep': True, 'lm': True, 'cp': True},
+        5: {'er': True, 'lm': True},
+        6: {'er': True, 'la': True},
+        7: {},
         }
     ADD = {
-        4: {'ei': True, 'lm': True},
-        5: {'er': True, 'lb': True},
-        6: {'eu': True, 'la': True},
+        4: {'ep': True, 'lm': True, 'cp': True},
+        5: {'er': True, 'lm': True},
+        6: {'er': True, 'lb': True},
+        7: {'eu': True, 'la': True},
         }
     SUB = {
-        4: {'ei': True, 'lm': True},
-        5: {'er': True, 'lb': True},
-        6: {'eu': True, 'la': True, 'su': True},
+        4: {'ep': True, 'lm': True, 'cp': True},
+        5: {'er': True, 'lm': True},
+        6: {'er': True, 'lb': True},
+        7: {'eu': True, 'la': True, 'su': True},
         }
     OUT = {
         4: {'ea': True, 'lo': True},
         5: {},
         6: {},
+        7: {},
         }
     JMP = {
-        4: {'ei': True, 'lp': True},
-        5: {},
+        4: {'ep': True, 'lm': True, 'cp': True},
+        5: {'er': True, 'lp': True},
         6: {},
+        7: {},
         }
     HLT = {
         1: {},
@@ -225,14 +228,15 @@ class Clock():
         4: {},
         5: {},
         6: {},
+        7: {},
         }
     opcode_microcode = {
-        0x0: LDA,
-        0x1: ADD,
-        0x2: SUB,
-        0x3: OUT,
-        0x4: JMP,
-        0xF: HLT,
+        0x00: LDA,
+        0x01: ADD,
+        0x02: SUB,
+        0x03: OUT,
+        0x04: JMP,
+        0xFF: HLT,
         }
 
     def __init__(self):
@@ -248,6 +252,7 @@ class Clock():
             4: {},
             5: {},
             6: {},
+            7: {},
             }
 
         for c in self.components:
@@ -290,7 +295,7 @@ class Clock():
             self.decode()
 
         self.t_state += 1
-        if self.t_state > 6:
+        if self.t_state > 7:
             self.t_state = 1
 
         # run until back to 1
