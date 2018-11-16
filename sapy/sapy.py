@@ -7,19 +7,19 @@ class ProgramCounter():
     def reset(self):
         self.counter = 0
 
-    def clock(self, data=None, cp=False, lp=False, **kwargs):
+    def clock(self, *, data=None, con=[]):
         """
         cp : bool
             Whether to increment program counter
         """
-        assert not (cp and lp) # either latch or increment
-        if cp:
+        assert not (('cp' in con) and ('lp' in con)) # either increment or latch or neither
+        if 'cp' in con:
             self.counter += 1
-        elif lp:
+        elif 'lp' in con:
             self.counter = data
 
-    def data(self, ep=False, **kwargs):
-        if ep:
+    def data(self, con=[]):
+        if 'ep' in con:
             return self.counter
         else:
             return None
@@ -31,12 +31,12 @@ class MemoryAddressRegister():
     def reset(self):
         self._address = 0x00
 
-    def data(self, **kwargs):
+    def data(self, con=[]):
         # mar never outputs to the bus
         return None
 
-    def clock(self, data=None, lm=False, **kwargs):
-        if lm:
+    def clock(self, *, data=None, con=[]):
+        if 'lm' in con:
             assert not data is None
             if data > 0xFF:
                 raise ValueError("Address bus limited to 8 bit")
@@ -53,13 +53,13 @@ class RandomAccessMemory():
     def reset(self):
         self.values = {x: 0x00 for x in range(0xFF + 1)} # 256 total values
 
-    def clock(self, data=None,  lr=False, **kwargs):
-        if lr:
+    def clock(self, *, data=None, con=[]):
+        if 'lr' in con:
             assert not data is None
             self.values[self._mar.address()] = data
 
-    def data(self, er=False, **kwargs):
-        if er:
+    def data(self, con=[]):
+        if 'er' in con:
             return self.values[self._mar.address()]
         else:
             return None
@@ -71,14 +71,14 @@ class RegisterA():
     def reset(self):
         self.value = 0x00
 
-    def clock(self, data=None,  la=False, **kwargs):
-        if la:
+    def clock(self, *, data=None, con=[]):
+        if 'la' in con:
             assert not data is None
             assert 0x00 <= data <= 0xFF
             self.value = data
 
-    def data(self, ea=False, **kwargs):
-        if ea:
+    def data(self, con=[]):
+        if 'ea' in con:
             return self.value
 
 class RegisterB():
@@ -88,13 +88,13 @@ class RegisterB():
     def reset(self):
         self.value = 0x00
 
-    def clock(self, data=None,  lb=False, **kwargs):
-        if lb:
+    def clock(self, *, data=None, con=[]):
+        if 'lb' in con:
             assert not data is None
             assert 0x00 <= data <= 0xFF
             self.value = data
 
-    def data(self, **kwargs):
+    def data(self, con=[]):
         return None
 
 class RegisterOutput():
@@ -113,7 +113,7 @@ class RegisterOutput():
             self.output_function(self.value)
 
 
-    def data(self, **kwargs):
+    def data(self, con=[]):
         return None
 
 class ArithmeticUnit():
@@ -125,17 +125,17 @@ class ArithmeticUnit():
     def reset(self):
         pass
 
-    def clock(self, **kwargs):
+    def clock(self, *, data=None, con=[]):
         # ArithmeticUnit is static realtime
         pass
 
-    def data(self, eu=False, su=False, **kwargs):
-        if not eu:
+    def data(self, con=[]):
+        if not 'eu' in con:
             return None
 
-        if not su:
+        if not 'su' in con:
             a = self.accumulator.value + self.reg_b.value
-        elif su:
+        elif 'su' in con:
             a =  self.accumulator.value - self.reg_b.value
 
         # Handel overflows
@@ -149,13 +149,13 @@ class RegisterInstruction():
     def reset(self):
         self.value = 0x00
 
-    def clock(self, data=None,  li=False, **kwargs):
-        if li:
+    def clock(self, *, data=None, con=[]):
+        if 'li' in con:
             assert not data is None
             assert 0x00 <= data <= 0xFF
             self.value = data
 
-    def data(self, **kwargs):
+    def data(self, con=[]):
         return None
 
     def opcode(self):
@@ -183,49 +183,49 @@ class SwitchBoard():
 
     def write_ram(self):
         # store address for ram in register
-        self._mar.clock(data=self.address, lm=True)
+        self._mar.clock(data=self.address, con=['lm'])
         # clock data into ram at the address set above
-        self._ram.clock(data=self.data, lr=True)
+        self._ram.clock(data=self.data, con=['lr'])
 
 class Clock():
     LDA = {
-        4: {'ep': True, 'lm': True, 'cp': True},
-        5: {'er': True, 'lm': True},
-        6: {'er': True, 'la': True},
-        7: {},
+        4: ['ep', 'lm', 'cp'],
+        5: ['er', 'lm'],
+        6: ['er', 'la'],
+        7: [],
         }
     ADD = {
-        4: {'ep': True, 'lm': True, 'cp': True},
-        5: {'er': True, 'lm': True},
-        6: {'er': True, 'lb': True},
-        7: {'eu': True, 'la': True},
+        4: ['ep', 'lm', 'cp'],
+        5: ['er', 'lm'],
+        6: ['er', 'lb'],
+        7: ['eu', 'la'],
         }
     SUB = {
-        4: {'ep': True, 'lm': True, 'cp': True},
-        5: {'er': True, 'lm': True},
-        6: {'er': True, 'lb': True},
-        7: {'eu': True, 'la': True, 'su': True},
+        4: ['ep', 'lm', 'cp'],
+        5: ['er', 'lm'],
+        6: ['er', 'lb'],
+        7: ['eu', 'la', 'su'],
         }
     OUT = {
-        4: {'ea': True, 'lo': True},
-        5: {},
-        6: {},
-        7: {},
+        4: ['ea', 'lo'],
+        5: [],
+        6: [],
+        7: [],
         }
     JMP = {
-        4: {'ep': True, 'lm': True, 'cp': True},
-        5: {'er': True, 'lp': True},
-        6: {},
-        7: {},
+        4: ['ep', 'lm', 'cp'],
+        5: ['er', 'lp'],
+        6: [],
+        7: [],
         }
     HLT = {
-        1: {},
-        2: {},
-        3: {},
-        4: {},
-        5: {},
-        6: {},
-        7: {},
+        1: [],
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+        7: [],
         }
     opcode_microcode = {
         0x00: LDA,
@@ -265,7 +265,7 @@ class Clock():
     def data_bus(self, control_word):
         datas = []
         for c in self.components:
-            d = c.data(**control_word)
+            d = c.data(control_word)
             # print(c, d)
             if not d is None:
                 datas.append(d)
@@ -286,7 +286,7 @@ class Clock():
             print(f"T{self.t_state}: Data: {data}, Control Word: {control_word}")
 
         for c in self.components:
-            c.clock(data=data, **control_word)
+            c.clock(data=data, con=control_word)
 
         if self.t_state == 3:
             self.decode()

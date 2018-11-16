@@ -6,38 +6,38 @@ def test_program_counter_increments():
     pc = ProgramCounter()
 
     pc.clock()
-    assert pc.data(ep=True) == 0x00
+    assert pc.data(['ep']) == 0x00
 
-    pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x01
+    pc.clock(con=['cp'])
+    assert pc.data(['ep']) == 0x01
 
-    pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x02
+    pc.clock(con=['cp'])
+    assert pc.data(['ep']) == 0x02
 
 def test_program_counter_latches():
     pc = ProgramCounter()
 
     pc.clock()
 
-    pc.clock(data=0x0D, lp=True)
-    assert pc.data(ep=True) == 0x0D
+    pc.clock(data=0x0D, con=['lp'])
+    assert pc.data(['ep']) == 0x0D
 
-    pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x0E
+    pc.clock(con=['cp'])
+    assert pc.data(['ep']) == 0x0E
 
 def test_program_counter_resets():
     pc = ProgramCounter()
 
-    pc.clock(cp=True)
-    assert pc.data(ep=True) == 0x01
+    pc.clock(con=['cp'])
+    assert pc.data(['ep']) == 0x01
 
     pc.reset()
-    assert pc.data(ep=True) == 0x00
+    assert pc.data(['ep']) == 0x00
 
 def test_program_counter_needs_ep():
     pc = ProgramCounter()
 
-    pc.clock(cp=True)
+    pc.clock(con=['cp'])
     assert pc.data() == None
 
     pc.reset()
@@ -48,13 +48,13 @@ def test_memory_address_register_latches_data_on_lm():
 
     assert mar.data() == None
 
-    mar.clock(data=0x0F, lm=True)
+    mar.clock(data=0x0F, con=['lm'])
     assert mar.address() == 0x0F
 
-    mar.clock(data=0x03, lm=True)
+    mar.clock(data=0x03, con=['lm'])
     assert mar.address() == 0x03
 
-    mar.clock(data=0x0C, lm=False)
+    mar.clock(data=0x0C, con=[])
     assert mar.address() == 0x03
 
 
@@ -63,17 +63,17 @@ def test_ram_can_store_values():
     ram = RandomAccessMemory(mar)
 
     # store address for ram in register
-    mar.clock(data=0x0F, lm=True)
+    mar.clock(data=0x0F, con=['lm'])
     assert mar.address() == 0x0F
 
     # clock data into ram at the address set above
-    ram.clock(data=0xAB, lr=True)
+    ram.clock(data=0xAB, con=['lr'])
     assert ram.data() == None
-    assert ram.data(er=True) == 0xAB
+    assert ram.data(['er']) == 0xAB
 
     # don't clock data into ram at the address set above
     ram.clock(data=0xAA)
-    assert ram.data(er=True) == 0xAB
+    assert ram.data(['er']) == 0xAB
 
 def test_addresses_must_be_8_bit():
     mar = MemoryAddressRegister()
@@ -82,11 +82,11 @@ def test_addresses_must_be_8_bit():
     bitmax = 0xFF
 
     # store address for ram in register
-    mar.clock(data=bitmax, lm=True)
+    mar.clock(data=bitmax, con=['lm'])
     assert mar.address() == bitmax
 
     with pytest.raises(ValueError):
-        mar.clock(data=bitmax + 1, lm=True)
+        mar.clock(data=bitmax + 1, con=['lm'])
 
 
 def test_switches_can_give_address_and_data():
@@ -104,48 +104,48 @@ def test_switches_can_initialize_ram():
     switches.load_program(program)
 
     # set ram address
-    mar.clock(data=0x00, lm=True)
-    assert ram.data(er=True) == 0xFA
-    mar.clock(data=0x01, lm=True)
-    assert ram.data(er=True) == 0x12
-    mar.clock(data=0x00, lm=True)
-    assert ram.data(er=True) == 0xFA
+    mar.clock(data=0x00, con=['lm'])
+    assert ram.data(['er']) == 0xFA
+    mar.clock(data=0x01, con=['lm'])
+    assert ram.data(['er']) == 0x12
+    mar.clock(data=0x00, con=['lm'])
+    assert ram.data(['er']) == 0xFA
 
 def test_a_register_can_store_and_retrieve_values():
     reg_a = RegisterA()
 
-    assert reg_a.data(ea=True) == 0x00
-    reg_a.clock(data=0xAB, la=True)
+    assert reg_a.data(['ea']) == 0x00
+    reg_a.clock(data=0xAB, con=['la'])
     assert reg_a.value == 0xAB
     assert reg_a.data() == None
-    assert reg_a.data(ea=True) == 0xAB
+    assert reg_a.data(['ea']) == 0xAB
 
 def test_b_register_can_store_and_not_retrieve():
     reg_b = RegisterB()
 
     # register_b cannot put data on the bus
-    assert reg_b.data(eb=True) == None
+    assert reg_b.data(['eb']) == None
 
-    reg_b.clock(data=0xAB, lb=True)
+    reg_b.clock(data=0xAB, con=['lb'])
     assert reg_b.value == 0xAB
     assert reg_b.data() == None
 
     # register_b cannot put data on the bus
-    assert reg_b.data(eb=True) == None
+    assert reg_b.data(['eb']) == None
 
 
 def test_output_register_can_store_and_not_retrieve():
     reg_o = RegisterOutput()
 
     # register_o cannot put data on the bus
-    assert reg_o.data(eo=True) == None
+    assert reg_o.data(['eo']) == None
 
-    reg_o.clock(data=0xAB, lo=True)
+    reg_o.clock(data=0xAB, con=['lo'])
     assert reg_o.value == 0xAB
     assert reg_o.data() == None
 
     # register_o cannot put data on the bus
-    assert reg_o.data(eo=True) == None
+    assert reg_o.data(['eo']) == None
 
 @pytest.mark.parametrize("a,b,expected", [
     (0x00, 0x00, 0x00),
@@ -154,15 +154,15 @@ def test_output_register_can_store_and_not_retrieve():
     ])
 def test_arithmetic_unit_adds(a, b, expected):
     reg_a = RegisterA()
-    reg_a.clock(data=a, la=True)
+    reg_a.clock(data=a, con=['la'])
 
     reg_b = RegisterB()
-    reg_b.clock(data=b, lb=True)
+    reg_b.clock(data=b, con=['lb'])
 
     adder = ArithmeticUnit(reg_a, reg_b)
 
     assert adder.data() is None
-    assert adder.data(eu=True) == expected
+    assert adder.data(['eu']) == expected
 
 @pytest.mark.parametrize("a,b,expected", [
     (0x04, 0x04, 0x00),
@@ -171,24 +171,24 @@ def test_arithmetic_unit_adds(a, b, expected):
     ])
 def test_arithmetic_unit_subtracts(a, b, expected):
     reg_a = RegisterA()
-    reg_a.clock(data=a, la=True)
+    reg_a.clock(data=a, con=['la'])
 
     reg_b = RegisterB()
-    reg_b.clock(data=b, lb=True)
+    reg_b.clock(data=b, con=['lb'])
 
     adder = ArithmeticUnit(reg_a, reg_b)
 
     assert adder.data() is None
-    assert adder.data(eu=True, su=True) == expected
+    assert adder.data(['eu', 'su']) == expected
 
 def test_instruction_register_doesnt_split_value():
     reg_i = RegisterInstruction()
     instruction = 0xCD # both opcode and argument, 8bits
-    reg_i.clock(data=instruction, li=True)
+    reg_i.clock(data=instruction, con=['li'])
     assert reg_i.value == instruction
     assert reg_i.opcode() == 0xCD # opcode
     assert reg_i.data() == None
-    assert reg_i.data(ei=True) == None # Doesn't make sense when switched to 8bit opcode and 2 byte instructions
+    assert reg_i.data(['ei']) == None # Doesn't make sense when switched to 8bit opcode and 2 byte instructions
 
 def test_clock_add_component():
     clock = Clock()
@@ -201,9 +201,9 @@ def test_clock_gets_data():
     reg_a = RegisterA()
     clock.add_component(reg_a)
 
-    reg_a.clock(data=0xCD, la=True)
+    reg_a.clock(data=0xCD, con=['la'])
 
-    control_word = {'ea': True}
+    control_word = ['ea']
 
     assert clock.data_bus(control_word) == 0xCD
 
@@ -215,10 +215,10 @@ def test_clock_fails_if_multi_data_accessed():
     clock.add_component(reg_a)
     clock.add_component(pc)
 
-    reg_a.clock(data=0xCD, la=True)
-    pc.clock(data=0xAE, ep=True)
+    reg_a.clock(data=0xCD, con=['la'])
+    pc.clock(data=0xAE, con=['ep'])
 
-    control_word = {'ea': True, 'ep':True}
+    control_word = ['ea', 'ep']
 
     with pytest.raises(RuntimeError):
         clock.data_bus(control_word)
@@ -294,7 +294,7 @@ def test_t3_transfers_instruction_from_ram_to_instruction_register():
     switches = SwitchBoard(ram, mar)
     program = [0xFA, 0x12]
     switches.load_program(program)
-    mar.clock(data=0x01, lm=True) # get the second instruction next
+    mar.clock(data=0x01, con=['lm']) # get the second instruction next
     clock.t_state = 3
 
     # apply single clock cycle
