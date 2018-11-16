@@ -1,6 +1,6 @@
 import pytest # type: ignore
 
-from .sapy import Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
+from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
 
 def test_program_counter_increments():
     pc = ProgramCounter()
@@ -49,13 +49,13 @@ def test_memory_address_register_latches_data_on_lm():
     assert mar.data() == None
 
     mar.clock(data=0x0F, con=['lm'])
-    assert mar.address() == 0x0F
+    assert mar.value == 0x0F
 
     mar.clock(data=0x03, con=['lm'])
-    assert mar.address() == 0x03
+    assert mar.value == 0x03
 
     mar.clock(data=0x0C, con=[])
-    assert mar.address() == 0x03
+    assert mar.value == 0x03
 
 
 def test_ram_can_store_values():
@@ -64,7 +64,7 @@ def test_ram_can_store_values():
 
     # store address for ram in register
     mar.clock(data=0x0F, con=['lm'])
-    assert mar.address() == 0x0F
+    assert mar.value == 0x0F
 
     # clock data into ram at the address set above
     ram.clock(data=0xAB, con=['lr'])
@@ -83,7 +83,7 @@ def test_addresses_must_be_8_bit():
 
     # store address for ram in register
     mar.clock(data=bitmax, con=['lm'])
-    assert mar.address() == bitmax
+    assert mar.value == bitmax
 
     with pytest.raises(ValueError):
         mar.clock(data=bitmax + 1, con=['lm'])
@@ -183,12 +183,11 @@ def test_arithmetic_unit_subtracts(a, b, expected):
 
 def test_instruction_register_doesnt_split_value():
     reg_i = RegisterInstruction()
-    instruction = 0xCD # both opcode and argument, 8bits
+    instruction = 0xCD # both 8bit opcode
     reg_i.clock(data=instruction, con=['li'])
     assert reg_i.value == instruction
-    assert reg_i.opcode() == 0xCD # opcode
     assert reg_i.data() == None
-    assert reg_i.data(['ei']) == None # Doesn't make sense when switched to 8bit opcode and 2 byte instructions
+    assert reg_i.data(['ei']) == None
 
 def test_clock_add_component():
     clock = Clock()
@@ -251,13 +250,13 @@ def test_t1_transfers_pc_to_mar():
     clock.reset()
 
     # contrive for test
-    pc.counter = 0x0C
+    pc.clock(data=0x0C, con=['lp'])
     clock.t_state = 1
 
     # apply single clock cycle
     clock.step()
 
-    assert mar.address() == 0x0C
+    assert mar.value == 0x0C
 
 def test_t2_increments_pc():
     clock = Clock()
@@ -269,17 +268,17 @@ def test_t2_increments_pc():
     clock.reset()
 
     # contrive for test
-    pc.counter = 0x0C
+    pc.clock(data=0x0C, con=['lp'])
     clock.t_state = 2
 
     # apply single clock cycle
     clock.step()
 
-    assert pc.counter == 0x0D
+    assert pc.value == 0x0D
 
 def test_t3_transfers_instruction_from_ram_to_instruction_register():
-    clock = Clock()
     reg_i = RegisterInstruction()
+    clock = Clock(reg_i)
     mar = MemoryAddressRegister()
     ram = RandomAccessMemory(mar)
 

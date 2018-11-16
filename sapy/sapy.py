@@ -1,49 +1,72 @@
 ### Components ###
-
-class ProgramCounter():
-    def __init__(self):
+class Register():
+    def __init__(self, name):
+        self._name = name
+        self.latch_bit = 'l' + name
+        self.enable_bit = 'e' + name
         self.reset()
 
     def reset(self):
-        self.counter = 0
+        self.value = 0x00
+
+    def clock(self, *, data=None, con=[]):
+        if self.latch_bit in con:
+            assert not data is None
+            if not (0x00 <= data <= 0xFF):
+                raise ValueError("data bus is limited to 8 bits")
+            self.value = data
+
+    def data(self, con=[]):
+        if self.enable_bit in con:
+            return self.value
+
+class RegisterA(Register):
+    def __init__(self):
+        super().__init__(name='a')
+
+class RegisterB(Register):
+    def __init__(self):
+        super().__init__(name='b')
+
+    def data(self, con=[]):
+        """B Register does not output ever"""
+        return None
+
+class MemoryAddressRegister(Register):
+    def __init__(self):
+        super().__init__(name='m')
+
+    def data(self, con=[]):
+        """mar never outputs to the bus"""
+        return None
+
+class ProgramCounter(Register):
+    def __init__(self):
+        super().__init__(name='p')
 
     def clock(self, *, data=None, con=[]):
         """
-        cp : bool
+        Control Bits
+        ------------
+        cp 
             Whether to increment program counter
         """
         assert not (('cp' in con) and ('lp' in con)) # either increment or latch or neither
         if 'cp' in con:
-            self.counter += 1
+            self.value += 1
         elif 'lp' in con:
-            self.counter = data
+            self.value = data
 
-    def data(self, con=[]):
-        if 'ep' in con:
-            return self.counter
-        else:
-            return None
-
-class MemoryAddressRegister():
+class RegisterOutput(Register):
     def __init__(self):
-        self.reset()
+        super().__init__(name='o')
+        self.output_function = lambda x: print(f"Output Display: {x:X}")
 
-    def reset(self):
-        self._address = 0x00
+    def output_function(value):
+        print(f"Output: {value}")
 
     def data(self, con=[]):
-        # mar never outputs to the bus
         return None
-
-    def clock(self, *, data=None, con=[]):
-        if 'lm' in con:
-            assert not data is None
-            if data > 0xFF:
-                raise ValueError("Address bus limited to 8 bit")
-            self._address = data
-
-    def address(self):
-        return self._address
 
 class RandomAccessMemory():
     def __init__(self, mar):
@@ -56,65 +79,13 @@ class RandomAccessMemory():
     def clock(self, *, data=None, con=[]):
         if 'lr' in con:
             assert not data is None
-            self.values[self._mar.address()] = data
+            self.values[self._mar.value] = data
 
     def data(self, con=[]):
         if 'er' in con:
-            return self.values[self._mar.address()]
+            return self.values[self._mar.value]
         else:
             return None
-
-class RegisterA():
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.value = 0x00
-
-    def clock(self, *, data=None, con=[]):
-        if 'la' in con:
-            assert not data is None
-            assert 0x00 <= data <= 0xFF
-            self.value = data
-
-    def data(self, con=[]):
-        if 'ea' in con:
-            return self.value
-
-class RegisterB():
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.value = 0x00
-
-    def clock(self, *, data=None, con=[]):
-        if 'lb' in con:
-            assert not data is None
-            assert 0x00 <= data <= 0xFF
-            self.value = data
-
-    def data(self, con=[]):
-        return None
-
-class RegisterOutput():
-    def __init__(self):
-        self.reset()
-        self.output_function = lambda x: print(f"Output Display: {x:X}")
-
-    def reset(self):
-        self.value = 0x00
-
-    def clock(self, data=None,  lo=False, **kwargs):
-        if lo:
-            assert not data is None
-            assert 0x00 <= data <= 0xFF
-            self.value = data
-            self.output_function(self.value)
-
-
-    def data(self, con=[]):
-        return None
 
 class ArithmeticUnit():
     def __init__(self, accumulator, reg_b):
@@ -142,12 +113,9 @@ class ArithmeticUnit():
         base = 1 << 8 # eight bits
         return a % base
 
-class RegisterInstruction():
+class RegisterInstruction(Register):
     def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.value = 0x00
+        super().__init__(name='o')
 
     def clock(self, *, data=None, con=[]):
         if 'li' in con:
@@ -158,12 +126,7 @@ class RegisterInstruction():
     def data(self, con=[]):
         return None
 
-    def opcode(self):
-        return self.value
-
-
 ### Controller Parts ###
-
 class SwitchBoard():
     def __init__(self, ram, mar):
         self._ram = ram
@@ -236,7 +199,8 @@ class Clock():
         0xFF: HLT,
         }
 
-    def __init__(self):
+    def __init__(self, reg_i=None):
+        self.reg_i = reg_i
         self.components = []
         self.reset()
 
@@ -257,10 +221,6 @@ class Clock():
 
     def add_component(self, component):
         self.components.append(component)
-
-    def connect_opcode(self, opcode_function):
-        """Connect a function that returns the current opcode"""
-        self.opcode = opcode_function
 
     def data_bus(self, control_word):
         datas = []
@@ -301,9 +261,12 @@ class Clock():
 
     def decode(self):
         try:
-            self.microcode.update(self.opcode_microcode[self.opcode()])
+            new_microcode = self.opcode_microcode[self.reg_i.value]
+            self.microcode.update(new_microcode)
         except AttributeError:
-            print("No opcode function for decoding instruction attached")
+            print("No reg_i attached")
+        except KeyError:
+            print("Trying to execute a non-existant opcode")
 
 
 class Computer():
@@ -321,7 +284,7 @@ class Computer():
 
         self.switches = SwitchBoard(self.ram, self.mar)
 
-        clock = Clock()
+        clock = Clock(self.reg_i)
         self._clock = clock
 
         clock.add_component(self.pc)
@@ -332,8 +295,6 @@ class Computer():
         clock.add_component(self.reg_b)
         clock.add_component(self.reg_o)
         clock.add_component(self.adder)
-
-        clock.connect_opcode(self.reg_i.opcode)
 
         # reset CPU
         clock.reset()
