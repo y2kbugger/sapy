@@ -11,6 +11,7 @@ pytest = "*"
 pytest-xdist = "*"
 neovim = "*"
 ipython = "*"
+pytest-mypy = "*"
 
 [requires]
 python_version = "3.7"
