@@ -1,4 +1,5 @@
-import numpy as np
+import numpy as np # type: ignore
+
 ### Components ###
 class Register():
     def __init__(self, name):
@@ -62,9 +63,6 @@ class RegisterOutput(Register):
     def __init__(self):
         super().__init__(name='o')
         self.output_function = lambda x: print(f"Output Display: {x:X}")
-
-    def output_function(value):
-        print(f"Output: {value}")
 
     def data(self, con=[]):
         return None
@@ -160,6 +158,9 @@ class DMAReader():
     def __init__(self, ram, mar):
         self._ram = ram
         self._mar = mar
+        def handler(ram_array):
+            print(ram_array)
+        self.set_dma_handler = handler
 
     def read_ram(self):
         bitmap = np.zeros((0xF + 1, 0xF + 1))
@@ -176,44 +177,56 @@ class DMAReader():
         byte = self._ram.data(con=['er'])
         return byte
 
+    def connect_dma_handler(self, handler):
+        self._dma_handler = handler
+
+    def clock(self, *, data=None, con=[]):
+        if 'dma' in con:
+            self._dma_handler(self.read_ram())
+
+    def data(self, con=[]):
+        return None
+
+
 class Clock():
-    LDA = {
+    microcode_defs = {}
+    microcode_defs['LDA'] = {
         4: ['ep', 'lm', 'cp'], # get next memory loc
         5: ['er', 'lm'],       # get operand address from next memory loc
         6: ['er', 'la'],       # do something with value at the operand address
         7: [],
         }
-    ADD = {
+    microcode_defs['ADD'] = {
         4: ['ep', 'lm', 'cp'],
         5: ['er', 'lm'],
         6: ['er', 'lb'],
         7: ['eu', 'la'],
         }
-    SUB = {
+    microcode_defs['SUB'] = {
         4: ['ep', 'lm', 'cp'],
         5: ['er', 'lm'],
         6: ['er', 'lb'],
         7: ['eu', 'la', 'su'],
         }
-    OUT = {
+    microcode_defs['OUT'] = {
         4: ['ea', 'lo'],
         5: [],
         6: [],
         7: [],
         }
-    JMP = {
+    microcode_defs['JMP'] = {
         4: ['ep', 'lm', 'cp'],
         5: ['er', 'lp'],
         6: [],
         7: [],
         }
-    STA = {
+    microcode_defs['STA'] = {
         4: ['ep', 'lm', 'cp'],
         5: ['er', 'lm'],
         6: ['ea', 'lr'],
         7: [],
         }
-    HLT = {
+    microcode_defs['HLT'] = {
         1: [],
         2: [],
         3: [],
@@ -222,22 +235,22 @@ class Clock():
         6: [],
         7: [],
         }
-    NOP = {
+    microcode_defs['NOP'] = {
         4: [],
         5: [],
         6: [],
         7: [],
         }
 
-    opcode_microcode = {
-        0x00: LDA,
-        0x01: ADD,
-        0x02: SUB,
-        0x03: OUT,
-        0x04: JMP,
-        0x05: STA,
-        0xFE: NOP,
-        0xFF: HLT,
+    opcode_map = {
+        0x00: microcode_defs['LDA'],
+        0x01: microcode_defs['ADD'],
+        0x02: microcode_defs['SUB'],
+        0x03: microcode_defs['OUT'],
+        0x04: microcode_defs['JMP'],
+        0x05: microcode_defs['STA'],
+        0xFE: microcode_defs['NOP'],
+        0xFF: microcode_defs['HLT'],
         }
 
     def __init__(self, reg_i=None):
@@ -302,13 +315,13 @@ class Clock():
 
     def decode(self):
         try:
-            new_microcode = self.opcode_microcode[self.reg_i.value]
+            new_microcode = self.opcode_map[self.reg_i.value]
         except AttributeError:
             print("No reg_i attached")
-            new_microcode = self.NOP
+            new_microcode = self.microcode_defs['NOP']
         except KeyError:
             print("Trying to execute a non-existant opcode")
-            new_microcode = self.NOP
+            new_microcode = self.microcode_defs['NOP']
         self.microcode.update(new_microcode)
 
 

@@ -1,6 +1,5 @@
-import pytest
 import pytest # type: ignore
-import numpy as np
+import numpy as np # type: ignore
 
 from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
 
@@ -487,17 +486,9 @@ def test_dma_reader():
 
     mar = MemoryAddressRegister()
     ram = RandomAccessMemory(mar)
+
     switches = SwitchBoard(ram, mar)
-
     switches.load_program(program)
-
-    # set ram address
-    mar.clock(data=0x00, con=['lm'])
-    assert ram.data(['er']) == 1
-    mar.clock(data=0x01, con=['lm'])
-    assert ram.data(['er']) == 2
-    mar.clock(data=0x03, con=['lm'])
-    assert ram.data(['er']) == 4
 
     dma = DMAReader(ram, mar)
 
@@ -505,16 +496,27 @@ def test_dma_reader():
         assert orig == read
 
 def test_dma_reader_handler():
-    pc = Computer()
-    program = [
-        0x00, 0x09, # 0x00 LDA 09H
-        0x01, 0x0A, # 0x20 ADD 0AH
-        0x03,       # 0x04 OUT
-        0x05, 0x0A,  # 0x05 STA 0AH
-        0x04, 0x02, # 0x07 JMP 02H
-        0x00,       # 0x09 A1H
-        0x02,       # 0x0A 22H
-        ]
-    pc.switches.load_program(program)
-    pc.dma.connect_dma_handler(print)
+    bytes_read= np.zeros((0xF, 0xF))
+
+    program = [1, 2, 3, 4, 5, 6]
+
+    mar = MemoryAddressRegister()
+    ram = RandomAccessMemory(mar)
+
+    switches = SwitchBoard(ram, mar)
+    switches.load_program(program)
+
+    dma = DMAReader(ram, mar)
+
+    called = False
+    def test_handler(result):
+        nonlocal called
+        called = True
+
+    dma.connect_dma_handler(test_handler)
+    assert called == False
+    dma.clock(con=[])
+    assert called == False
+    dma.clock(con=['dma'])
+    assert called == True
 
