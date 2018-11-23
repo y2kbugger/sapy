@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np # type: ignore
 
 ### Components ###
@@ -45,6 +47,7 @@ class MemoryAddressRegister(Register):
 class ProgramCounter(Register):
     def __init__(self):
         super().__init__(name='p')
+        self.halted = False
 
     def clock(self, *, data=None, con=[]):
         """
@@ -52,12 +55,20 @@ class ProgramCounter(Register):
         ------------
         cp 
             Whether to increment program counter
+        hp
+            Halt the program counter
         """
         assert not (('cp' in con) and ('lp' in con)) # either increment or latch or neither
-        if 'cp' in con:
+        if self.halted:
+            return
+
+        if 'cp' in con and not self.halted:
             self.value += 1
         elif 'lp' in con:
             self.value = data
+        elif 'hp' in con:
+            self.value -= 1 # move back to halt instuction
+            self.halted = True
 
 class RegisterOutput(Register):
     def __init__(self):
@@ -162,6 +173,9 @@ class DMAReader():
             print(ram_array)
         self.set_dma_handler = handler
 
+    def reset(self):
+        pass
+
     def read_ram(self):
         bitmap = np.zeros((0xF + 1, 0xF + 1))
 
@@ -187,70 +201,61 @@ class DMAReader():
     def data(self, con=[]):
         return None
 
-
 class Clock():
-    microcode_defs = {}
-    microcode_defs['LDA'] = {
-        4: ['ep', 'lm', 'cp'], # get next memory loc
-        5: ['er', 'lm'],       # get operand address from next memory loc
-        6: ['er', 'la'],       # do something with value at the operand address
-        7: [],
-        }
-    microcode_defs['ADD'] = {
-        4: ['ep', 'lm', 'cp'],
-        5: ['er', 'lm'],
-        6: ['er', 'lb'],
-        7: ['eu', 'la'],
-        }
-    microcode_defs['SUB'] = {
-        4: ['ep', 'lm', 'cp'],
-        5: ['er', 'lm'],
-        6: ['er', 'lb'],
-        7: ['eu', 'la', 'su'],
-        }
-    microcode_defs['OUT'] = {
-        4: ['ea', 'lo'],
-        5: [],
-        6: [],
-        7: [],
-        }
-    microcode_defs['JMP'] = {
-        4: ['ep', 'lm', 'cp'],
-        5: ['er', 'lp'],
-        6: [],
-        7: [],
-        }
-    microcode_defs['STA'] = {
-        4: ['ep', 'lm', 'cp'],
-        5: ['er', 'lm'],
-        6: ['ea', 'lr'],
-        7: [],
-        }
-    microcode_defs['HLT'] = {
-        1: [],
-        2: [],
-        3: [],
-        4: [],
-        5: [],
-        6: [],
-        7: [],
-        }
-    microcode_defs['NOP'] = {
-        4: [],
-        5: [],
-        6: [],
-        7: [],
-        }
+    fetch = (
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'li'),       # put that opcode at that loc into instruction register 
+        )
+
+    LDA = (
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ('er', 'la'),       # do something with value at the operand address
+        )
+
+    ADD = (
+        ('ep', 'lm', 'cp'),
+        ('er', 'lm'),
+        ('er', 'lb'),
+        ('eu', 'la'),
+        )
+
+    SUB = (
+        ('ep', 'lm', 'cp'),
+        ('er', 'lm'),
+        ('er', 'lb'),
+        ('eu', 'la', 'su'),
+        )
+
+    OUT = (
+        ('ea', 'lo'),
+        )
+
+    JMP = (
+        ('ep', 'lm', 'cp'),
+        ('er', 'lp'),
+        )
+
+    STA = (
+        ('ep', 'lm', 'cp'),
+        ('er', 'lm'),
+        ('ea', 'lr'),
+        )
+
+    NOP = tuple()
+    HLT = (('hp'),)
+    DMA = (('dma'),)
 
     opcode_map = {
-        0x00: microcode_defs['LDA'],
-        0x01: microcode_defs['ADD'],
-        0x02: microcode_defs['SUB'],
-        0x03: microcode_defs['OUT'],
-        0x04: microcode_defs['JMP'],
-        0x05: microcode_defs['STA'],
-        0xFE: microcode_defs['NOP'],
-        0xFF: microcode_defs['HLT'],
+        0x00: LDA,
+        0x01: ADD,
+        0x02: SUB,
+        0x03: OUT,
+        0x04: JMP,
+        0x05: STA,
+        0xFD: DMA,
+        0xFE: NOP,
+        0xFF: HLT,
         }
 
     def __init__(self, reg_i=None):
@@ -259,16 +264,8 @@ class Clock():
         self.reset()
 
     def reset(self):
-        self.t_state = 1
-        self.microcode = {
-            1: ['ep', 'lm'],
-            2: ['cp'],
-            3: ['er', 'li'],
-            4: [],
-            5: [],
-            6: [],
-            7: [],
-            }
+        self.t_state = 0
+        self.microcode = self.fetch
 
         for c in self.components:
             c.reset()
@@ -292,25 +289,31 @@ class Clock():
             raise RuntimeError("More than one component outputting to the data bus")
 
     def step(self, instructionwise=False, debug=True):
-        control_word = self.microcode[self.t_state]
+        try:
+            control_word = self.microcode[self.t_state]
+        except IndexError:
+            self.t_state = 0
+            self.microcode = self.fetch
+            if instructionwise:
+                return
+            control_word = self.microcode[self.t_state]
+
         data = self.data_bus(control_word)
         if debug:
-            if self.t_state == 1:
+            if self.t_state == 0:
                 print('-' * 42)
             print(f"T{self.t_state}: Data: {data}, Control Word: {control_word}")
 
         for c in self.components:
             c.clock(data=data, con=control_word)
 
-        if self.t_state == 3:
+        if self.t_state == 1:
             self.decode()
 
         self.t_state += 1
-        if self.t_state > 7:
-            self.t_state = 1
 
-        # run until back to 1
-        if instructionwise and self.t_state != 1:
+        # run until back to 0
+        if instructionwise:
             self.step(instructionwise=True, debug=debug)
 
     def decode(self):
@@ -318,12 +321,11 @@ class Clock():
             new_microcode = self.opcode_map[self.reg_i.value]
         except AttributeError:
             print("No reg_i attached")
-            new_microcode = self.microcode_defs['NOP']
+            new_microcode = self.NOP
         except KeyError:
             print("Trying to execute a non-existant opcode")
-            new_microcode = self.microcode_defs['NOP']
-        self.microcode.update(new_microcode)
-
+            new_microcode = self.NOP
+        self.microcode = self.fetch + new_microcode
 
 class Computer():
     def __init__(self):
@@ -339,6 +341,7 @@ class Computer():
         self.reg_i = RegisterInstruction()
 
         self.switches = SwitchBoard(self.ram, self.mar)
+        self.dma = DMAReader(self.ram, self.mar)
 
         clock = Clock(self.reg_i)
         self._clock = clock
@@ -351,6 +354,7 @@ class Computer():
         clock.add_component(self.reg_b)
         clock.add_component(self.reg_o)
         clock.add_component(self.adder)
+        clock.add_component(self.dma)
 
         # reset CPU
         clock.reset()

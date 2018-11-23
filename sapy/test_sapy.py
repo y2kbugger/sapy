@@ -239,7 +239,7 @@ def test_clock_resets_components():
     clock.reset()
     assert c.reset_called
 
-def test_t1_transfers_pc_to_mar():
+def test_t0_transfers_pc_to_mar():
     clock = Clock()
     pc = ProgramCounter()
     mar = MemoryAddressRegister()
@@ -252,14 +252,14 @@ def test_t1_transfers_pc_to_mar():
 
     # contrive for test
     pc.clock(data=0x0C, con=['lp'])
-    clock.t_state = 1
+    clock.t_state = 0
 
     # apply single clock cycle
     clock.step()
 
     assert mar.value == 0x0C
 
-def test_t2_increments_pc():
+def test_t0_increments_pc():
     clock = Clock()
     pc = ProgramCounter()
 
@@ -270,14 +270,14 @@ def test_t2_increments_pc():
 
     # contrive for test
     pc.clock(data=0x0C, con=['lp'])
-    clock.t_state = 2
+    clock.t_state = 0
 
     # apply single clock cycle
     clock.step()
 
     assert pc.value == 0x0D
 
-def test_t3_transfers_instruction_from_ram_to_instruction_register():
+def test_t1_transfers_instruction_from_ram_to_instruction_register():
     reg_i = RegisterInstruction()
     clock = Clock(reg_i)
     mar = MemoryAddressRegister()
@@ -295,7 +295,7 @@ def test_t3_transfers_instruction_from_ram_to_instruction_register():
     program = [0xFA, 0x12]
     switches.load_program(program)
     mar.clock(data=0x01, con=['lm']) # get the second instruction next
-    clock.t_state = 3
+    clock.t_state = 1
 
     # apply single clock cycle
     clock.step()
@@ -309,11 +309,11 @@ def test_clock_can_single_step():
     clock.reset()
 
     # contrive for test
-    clock.t_state = 3
+    clock.t_state = 0
 
     # apply single clock cycle
     clock.step()
-    assert clock.t_state == 4
+    assert clock.t_state == 1
 
 def test_clock_can_instruction_step():
     clock = Clock()
@@ -326,28 +326,7 @@ def test_clock_can_instruction_step():
 
     # apply single clock cycle
     clock.step(instructionwise=True)
-    assert clock.t_state == 1
-
-def test_clock_has_correct_number_of_t_states():
-    clock = Clock()
-
-    # reset CPU
-    clock.reset()
-
-    # contrive for test
-    clock.t_state = 3
-
-    # apply single clock cycle
-    clock.step()
-    assert clock.t_state == 4
-    clock.step()
-    assert clock.t_state == 5
-    clock.step()
-    assert clock.t_state == 6
-    clock.step()
-    assert clock.t_state == 7
-    clock.step()
-    assert clock.t_state == 1
+    assert clock.t_state == 0
 
 def test_opcode_lda():
     pc = Computer()
@@ -479,9 +458,24 @@ def test_opcode_sta():
     assert pc.reg_o.value == 0x20
     pc.step(instructionwise=True)
 
-def test_dma_reader():
-    bytes_read= np.zeros((0xF, 0xF))
+def test_computer_halts():
+    pc = Computer()
+    program = [
+        0xFE,       # 0x00 NOP
+        0xFE,       # 0x01 NOP
+        0xFE,       # 0x02 NOP
+        0xFF,       # 0x03 HLT
+        0xFE,       # 0x04 NOP
+        0xFE,       # 0x05 NOP
+        0xFE,       # 0x06 NOP
+        ]
+    pc.switches.load_program(program)
+    counterprogress = [0, 1, 2, 3, 3, 3, 3]
+    for counter_value in counterprogress:
+        assert pc.pc.value == counter_value
+        pc.step(instructionwise=True)
 
+def test_dma_reader():
     program = [1, 2, 3, 4, 5, 6]
 
     mar = MemoryAddressRegister()
@@ -496,8 +490,6 @@ def test_dma_reader():
         assert orig == read
 
 def test_dma_reader_handler():
-    bytes_read= np.zeros((0xF, 0xF))
-
     program = [1, 2, 3, 4, 5, 6]
 
     mar = MemoryAddressRegister()
