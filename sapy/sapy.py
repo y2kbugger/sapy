@@ -105,9 +105,6 @@ class RegisterOutput():
     def reset(self):
         self.value = 0x00
 
-    def output_function(value):
-        print(f"Output: {value}")
-
     def clock(self, data=None,  lo=False, **kwargs):
         if lo:
             assert not data is None

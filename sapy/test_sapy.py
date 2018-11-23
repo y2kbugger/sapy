@@ -1,6 +1,6 @@
-import pytest
+import pytest # type: ignore
 
-from sapy import Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
+from .sapy import Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
 
 def test_program_counter_increments():
     pc = ProgramCounter()
