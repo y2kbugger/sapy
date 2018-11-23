@@ -360,10 +360,10 @@ def test_opcode_sub():
     pc.step(instructionwise=True)
     assert pc.reg_a.value == 0xAA
 
-def test_opcode_out():
+def test_opcode_ota():
     pc = Computer()
     program = [
-        0x03, # 0x00 OUT
+        0xF3, # 0x00 OTA
         ]
     pc.switches.load_program(program)
     pc.reg_a.value = 0xF8
@@ -375,7 +375,7 @@ def test_opcode_program_sequence():
     program = [
         0x00, 0x06, # 0x00 LDA 06H
         0x01, 0x07, # 0x02 ADD 07H
-        0x03,       # 0x04 OUT
+        0xF3,       # 0x04 OTA
         0xFF,       # 0x05 HLT
         0xA1,       # 0x06 A1H
         0x22,       # 0x07 22H
@@ -388,13 +388,13 @@ def test_opcode_program_sequence():
     pc.step(instructionwise=True)
     assert pc.reg_o.value == 0xC3
 
-def test_opcode_jmp():
+def test_opcode_jmp_immediate():
     pc = Computer()
     program = [
         0x00, 0x07, # 0x00 LDA 07H
         0x01, 0x08, # 0x20 ADD 08H
-        0x03,       # 0x04 OUT
-        0x04, 0x02, # 0x05 JMP 02H
+        0xF3,       # 0x04 OTA
+        0x24, 0x02, # 0x05 JMP $02H
         0x00,       # 0x07 A1H
         0x03,       # 0x08 22H
         ]
@@ -419,10 +419,10 @@ def test_opcode_sta():
     pc = Computer()
     program = [
         0x00, 0x09, # 0x00 LDA 09H
-        0x01, 0x0A, # 0x20 ADD 0AH
-        0x03,       # 0x04 OUT
-        0x05, 0x0A,  # 0x05 STA 0AH
-        0x04, 0x02, # 0x07 JMP 02H
+        0x01, 0x0A, # 0x02 ADD 0AH
+        0xF3,       # 0x04 OTA
+        0x05, 0x0A, # 0x05 STA 0AH
+        0x24, 0x02, # 0x07 JMP $02H
         0x00,       # 0x09 A1H
         0x02,       # 0x0A 22H
         ]

@@ -206,55 +206,66 @@ class Clock():
         ('ep', 'lm', 'cp'), # get next memory loc
         ('er', 'li'),       # put that opcode at that loc into instruction register 
         )
-
-    LDA = (
+    immediate = (
+        ('ep', 'lm', 'cp'), # get next memory loc
+        )
+    absolute = (
         ('ep', 'lm', 'cp'), # get next memory loc
         ('er', 'lm'),       # get operand address from next memory loc
-        ('er', 'la'),       # do something with value at the operand address
+        )
+    indirect = (
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        )
+
+    # do something with ram at the operand address, eg er to use, lr to save
+    LDA = (
+        ('er', 'la'),
+        )
+
+    OUT = (
+        ('er', 'lo'),
         )
 
     ADD = (
-        ('ep', 'lm', 'cp'),
-        ('er', 'lm'),
         ('er', 'lb'),
         ('eu', 'la'),
         )
 
     SUB = (
-        ('ep', 'lm', 'cp'),
-        ('er', 'lm'),
         ('er', 'lb'),
         ('eu', 'la', 'su'),
         )
 
-    OUT = (
-        ('ea', 'lo'),
-        )
-
     JMP = (
-        ('ep', 'lm', 'cp'),
         ('er', 'lp'),
         )
 
     STA = (
-        ('ep', 'lm', 'cp'),
-        ('er', 'lm'),
         ('ea', 'lr'),
         )
 
     NOP = tuple()
     HLT = (('hp'),)
     DMA = (('dma'),)
+    OTA = (('ea', 'lo'),)
+    INA = (('ec', 'lc'),) # c for char
+
 
     opcode_map = {
-        0x00: LDA,
-        0x01: ADD,
-        0x02: SUB,
-        0x03: OUT,
-        0x04: JMP,
-        0x05: STA,
-        0xFD: DMA,
-        0xFE: NOP,
+      # Immediate  Absolute   Indirect 
+        0x20: LDA, 0x00: LDA, 0x10: LDA,
+        0x21: ADD, 0x01: ADD, 0x11: ADD,
+        0x22: SUB, 0x02: SUB, 0x12: SUB,
+        0x23: OUT, 0x03: OUT, 0x13: OUT,
+        0x24: JMP, 0x04: JMP, 0x14: JMP,
+        0x25: STA, 0x05: STA, 0x15: STA,
+
+        0xF3: OTA, # Let's make this OUTA
+        0xFD: DMA, # Direct Memory Access Trigger
+        0xFE: NOP, # No Op
         0xFF: HLT,
         }
 
@@ -308,7 +319,7 @@ class Clock():
             c.clock(data=data, con=control_word)
 
         if self.t_state == 1:
-            self.decode()
+            self.decode(self.reg_i.value)
 
         self.t_state += 1
 
@@ -316,16 +327,24 @@ class Clock():
         if instructionwise:
             self.step(instructionwise=True, debug=debug)
 
-    def decode(self):
+    def decode(self, opcode):
         try:
-            new_microcode = self.opcode_map[self.reg_i.value]
+            new_microcode = self.opcode_map[opcode]
         except AttributeError:
             print("No reg_i attached")
             new_microcode = self.NOP
         except KeyError:
             print("Trying to execute a non-existant opcode")
             new_microcode = self.NOP
-        self.microcode = self.fetch + new_microcode
+        addressing_mode = opcode >> 4
+        if addressing_mode == 0xF: # Implied
+            self.microcode = self.fetch + new_microcode
+        elif addressing_mode == 0x2: # Immediate
+            self.microcode = self.fetch + self.immediate + new_microcode
+        elif addressing_mode == 0x0: # Absolute
+            self.microcode = self.fetch + self.absolute + new_microcode
+        elif addressing_mode == 0x1: # Absolute
+            self.microcode = self.fetch + self.indirect + new_microcode
 
 class Computer():
     def __init__(self):
