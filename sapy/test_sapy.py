@@ -1,6 +1,8 @@
+import pytest
 import pytest # type: ignore
+import numpy as np
 
-from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
+from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
 
 def test_program_counter_increments():
     pc = ProgramCounter()
@@ -477,4 +479,42 @@ def test_opcode_sta():
     pc.step(instructionwise=True)
     assert pc.reg_o.value == 0x20
     pc.step(instructionwise=True)
+
+def test_dma_reader():
+    bytes_read= np.zeros((0xF, 0xF))
+
+    program = [1, 2, 3, 4, 5, 6]
+
+    mar = MemoryAddressRegister()
+    ram = RandomAccessMemory(mar)
+    switches = SwitchBoard(ram, mar)
+
+    switches.load_program(program)
+
+    # set ram address
+    mar.clock(data=0x00, con=['lm'])
+    assert ram.data(['er']) == 1
+    mar.clock(data=0x01, con=['lm'])
+    assert ram.data(['er']) == 2
+    mar.clock(data=0x03, con=['lm'])
+    assert ram.data(['er']) == 4
+
+    dma = DMAReader(ram, mar)
+
+    for orig, read in zip(program, dma.read_ram().flatten()):
+        assert orig == read
+
+def test_dma_reader_handler():
+    pc = Computer()
+    program = [
+        0x00, 0x09, # 0x00 LDA 09H
+        0x01, 0x0A, # 0x20 ADD 0AH
+        0x03,       # 0x04 OUT
+        0x05, 0x0A,  # 0x05 STA 0AH
+        0x04, 0x02, # 0x07 JMP 02H
+        0x00,       # 0x09 A1H
+        0x02,       # 0x0A 22H
+        ]
+    pc.switches.load_program(program)
+    pc.dma.connect_dma_handler(print)
 

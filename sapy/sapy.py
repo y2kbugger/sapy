@@ -1,3 +1,4 @@
+import numpy as np
 ### Components ###
 class Register():
     def __init__(self, name):
@@ -67,6 +68,11 @@ class RegisterOutput(Register):
 
     def data(self, con=[]):
         return None
+
+    def clock(self, *, data=None, con=[]):
+        super().clock(data=data, con=con)
+        if 'lo' in con:
+            self.output_function(self.value)
 
 class RandomAccessMemory():
     def __init__(self, mar):
@@ -141,14 +147,34 @@ class SwitchBoard():
         self.address = 0x00
         for opcode in program:
             self.data = opcode
-            self.write_ram()
+            self.write_ram_location()
             self.address += 1
 
-    def write_ram(self):
+    def write_ram_location(self):
         # store address for ram in register
         self._mar.clock(data=self.address, con=['lm'])
         # clock data into ram at the address set above
         self._ram.clock(data=self.data, con=['lr'])
+
+class DMAReader():
+    def __init__(self, ram, mar):
+        self._ram = ram
+        self._mar = mar
+
+    def read_ram(self):
+        bitmap = np.zeros((0xF + 1, 0xF + 1))
+
+        for address_high in range(0x0, 0xF + 1):
+            for address_low in range(0x0, 0xF + 1):
+                byte = self.read_ram_location(address_high, address_low)
+                bitmap[address_high, address_low] = byte
+        return bitmap
+
+    def read_ram_location(self, address_high, address_low):
+        address = (address_high << 4) + address_low
+        self._mar.clock(data=address, con=['lm'])
+        byte = self._ram.data(con=['er'])
+        return byte
 
 class Clock():
     LDA = {
@@ -252,7 +278,7 @@ class Clock():
         elif len(datas) > 1:
             raise RuntimeError("More than one component outputting to the data bus")
 
-    def step(self, instructionwise=False, debug=False):
+    def step(self, instructionwise=False, debug=True):
         control_word = self.microcode[self.t_state]
         data = self.data_bus(control_word)
         if debug:
