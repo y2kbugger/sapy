@@ -152,9 +152,9 @@ class SwitchBoard():
 
 class Clock():
     LDA = {
-        4: ['ep', 'lm', 'cp'],
-        5: ['er', 'lm'],
-        6: ['er', 'la'],
+        4: ['ep', 'lm', 'cp'], # get next memory loc
+        5: ['er', 'lm'],       # get operand address from next memory loc
+        6: ['er', 'la'],       # do something with value at the operand address
         7: [],
         }
     ADD = {
@@ -181,6 +181,12 @@ class Clock():
         6: [],
         7: [],
         }
+    STA = {
+        4: ['ep', 'lm', 'cp'],
+        5: ['er', 'lm'],
+        6: ['ea', 'lr'],
+        7: [],
+        }
     HLT = {
         1: [],
         2: [],
@@ -190,12 +196,21 @@ class Clock():
         6: [],
         7: [],
         }
+    NOP = {
+        4: [],
+        5: [],
+        6: [],
+        7: [],
+        }
+
     opcode_microcode = {
         0x00: LDA,
         0x01: ADD,
         0x02: SUB,
         0x03: OUT,
         0x04: JMP,
+        0x05: STA,
+        0xFE: NOP,
         0xFF: HLT,
         }
 
@@ -207,13 +222,13 @@ class Clock():
     def reset(self):
         self.t_state = 1
         self.microcode = {
-            1: {'ep': True, 'lm': True},
-            2: {'cp': True},
-            3: {'er': True, 'li': True},
-            4: {},
-            5: {},
-            6: {},
-            7: {},
+            1: ['ep', 'lm'],
+            2: ['cp'],
+            3: ['er', 'li'],
+            4: [],
+            5: [],
+            6: [],
+            7: [],
             }
 
         for c in self.components:
@@ -262,11 +277,13 @@ class Clock():
     def decode(self):
         try:
             new_microcode = self.opcode_microcode[self.reg_i.value]
-            self.microcode.update(new_microcode)
         except AttributeError:
             print("No reg_i attached")
+            new_microcode = self.NOP
         except KeyError:
             print("Trying to execute a non-existant opcode")
+            new_microcode = self.NOP
+        self.microcode.update(new_microcode)
 
 
 class Computer():

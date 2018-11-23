@@ -434,3 +434,47 @@ def test_opcode_jmp():
     pc.step(instructionwise=True)
     assert pc.reg_o.value == 0x09
     pc.step(instructionwise=True)
+
+def test_opcode_sta():
+    pc = Computer()
+    program = [
+        0x00, 0x09, # 0x00 LDA 09H
+        0x01, 0x0A, # 0x20 ADD 0AH
+        0x03,       # 0x04 OUT
+        0x05, 0x0A,  # 0x05 STA 0AH
+        0x04, 0x02, # 0x07 JMP 02H
+        0x00,       # 0x09 A1H
+        0x02,       # 0x0A 22H
+        ]
+    pc.switches.load_program(program)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x02
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x04
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x08
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x10
+    pc.step(instructionwise=True)
+
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    pc.step(instructionwise=True)
+    assert pc.reg_o.value == 0x20
+    pc.step(instructionwise=True)
+
