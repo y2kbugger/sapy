@@ -1,6 +1,8 @@
-import itertools
+from typing import Tuple
 
 import numpy as np # type: ignore
+
+from dataclasses import dataclass
 
 ### Components ###
 class Register():
@@ -201,74 +203,197 @@ class DMAReader():
     def data(self, con=[]):
         return None
 
-class Clock():
-    fetch = (
-        ('ep', 'lm', 'cp'), # get next memory loc
-        ('er', 'li'),       # put that opcode at that loc into instruction register 
-        )
-    immediate = (
-        ('ep', 'lm', 'cp'), # get next memory loc
-        )
-    absolute = (
-        ('ep', 'lm', 'cp'), # get next memory loc
-        ('er', 'lm'),       # get operand address from next memory loc
-        )
-    indirect = (
-        ('ep', 'lm', 'cp'), # get next memory loc
-        ('er', 'lm'),       # get operand address from next memory loc
-        ('ep', 'lm', 'cp'), # get next memory loc
-        ('er', 'lm'),       # get operand address from next memory loc
-        )
+@dataclass
+class AddressingMode:
+    arg_fetch_microcode: Tuple[Tuple[str]]
+    high_nibble: int
 
+@dataclass
+class Mnemonic:
     # do something with ram at the operand address, eg er to use, lr to save
-    LDA = (
+    operation_microcode: Tuple[Tuple[str]]
+    low_nibble: int
+    addressing_modes: Tuple[AddressingMode]
+    mnemonic: str
+
+@dataclass
+class OpCode:
+    # Possible combinations of AddressingModes and Mnemonics
+    mne: Mnemonic
+    mode: AddressingMode
+
+    def decode(self):
+        return fetch_microcode \
+            + self.mode.arg_fetch_microcode \
+            + self.mne.operation_microcode
+
+def generate_opcode_map(mnemonics):
+    opcode_map = dict()
+    for mne in mnemonics:
+        for adm in mne.addressing_modes:
+            opcode = (adm.high_nibble << 4) + mne.low_nibble
+            opcode_map[opcode] = OpCode(mne, adm)
+    return opcode_map
+
+fetch_microcode = (
+    ('ep', 'lm', 'cp'), # get next memory loc
+    ('er', 'li'),       # put that opcode at that loc into instruction register 
+    )
+
+implied = AddressingMode(
+    arg_fetch_microcode=tuple(),
+    high_nibble=0xF,
+    )
+
+immediate = AddressingMode(
+    arg_fetch_microcode=(
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ),
+    high_nibble=0x2,
+    )
+
+absolute = AddressingMode(
+    arg_fetch_microcode=(
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ),
+    high_nibble=0x0,
+    )
+
+indirect = AddressingMode(
+    arg_fetch_microcode=(
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ('ep', 'lm'),       # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ),
+    high_nibble=0x1,
+    )
+
+absolute_branching = AddressingMode(
+    arg_fetch_microcode=(
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ),
+    high_nibble=0x3,
+    )
+
+indirect_branching = AddressingMode(
+    arg_fetch_microcode=(
+        ('ep', 'lm', 'cp'), # get next memory loc
+        ('er', 'lm'),       # get operand address from next memory loc
+        ),
+    high_nibble=0x4,
+    )
+
+# Mnemonics
+LDA = Mnemonic(
+    operation_microcode=(
         ('er', 'la'),
-        )
+        ),
+    low_nibble=0x0,
+    addressing_modes=(immediate, absolute, indirect),
+    mnemonic='LDA'
+    )
 
-    OUT = (
-        ('er', 'lo'),
-        )
-
-    ADD = (
+ADD = Mnemonic(
+    operation_microcode=(
         ('er', 'lb'),
         ('eu', 'la'),
-        )
+        ),
+    low_nibble=0x1,
+    addressing_modes=(immediate, absolute, indirect),
+    mnemonic='ADD'
+    )
 
-    SUB = (
+SUB = Mnemonic(
+    operation_microcode=(
         ('er', 'lb'),
         ('eu', 'la', 'su'),
-        )
+        ),
+    low_nibble=0x2,
+    addressing_modes=(immediate, absolute, indirect),
+    mnemonic='SUB'
+    )
 
-    JMP = (
+OUT = Mnemonic(
+    operation_microcode=(
+        ('er', 'lo'),
+        ),
+    low_nibble=0x3,
+    addressing_modes=(immediate, absolute, indirect),
+    mnemonic='OUT'
+    )
+
+JMP = Mnemonic(
+    operation_microcode=(
         ('er', 'lp'),
-        )
+        ),
+    low_nibble=0x4,
+    addressing_modes=(absolute_branching, indirect_branching),
+    mnemonic='JMP'
+    )
 
-    STA = (
+STA = Mnemonic(
+    operation_microcode=(
+        ('er', 'lm'),
         ('ea', 'lr'),
-        )
+        ),
+    low_nibble=0x5,
+    addressing_modes=(absolute_branching, indirect_branching),
+    mnemonic='STA'
+    )
 
-    NOP = tuple()
-    HLT = (('hp'),)
-    DMA = (('dma'),)
-    OTA = (('ea', 'lo'),)
-    INA = (('ec', 'lc'),) # c for char
+# Output A register
+OTA = Mnemonic(
+    operation_microcode=(
+        ('ea', 'lo'),
+        ),
+    low_nibble=0x6,
+    addressing_modes=(implied,),
+    mnemonic='OTA'
+    )
 
+# read Char (8bits) from input to the A register
+BAI = Mnemonic(
+    operation_microcode=(
+        ('ec', 'lc'),
+        ),
+    low_nibble=0x7,
+    addressing_modes=(implied,),
+    mnemonic='BAI'
+    )
 
-    opcode_map = {
-      # Immediate  Absolute   Indirect 
-        0x20: LDA, 0x00: LDA, 0x10: LDA,
-        0x21: ADD, 0x01: ADD, 0x11: ADD,
-        0x22: SUB, 0x02: SUB, 0x12: SUB,
-        0x23: OUT, 0x03: OUT, 0x13: OUT,
-        0x24: JMP, 0x04: JMP, 0x14: JMP,
-        0x25: STA, 0x05: STA, 0x15: STA,
+DMA = Mnemonic(
+    operation_microcode=(
+        ('dma',),
+        ),
+    low_nibble=0xD,
+    addressing_modes=(implied,),
+    mnemonic='DMA'
+    )
 
-        0xF3: OTA, # Let's make this OUTA
-        0xFD: DMA, # Direct Memory Access Trigger
-        0xFE: NOP, # No Op
-        0xFF: HLT,
-        }
+NOP = Mnemonic(
+    operation_microcode=(
+        tuple(),
+        ),
+    low_nibble=0xE,
+    addressing_modes=(implied,),
+    mnemonic='NOP'
+    )
 
+HLT = Mnemonic(
+    operation_microcode=(
+        ('hp',),
+        ),
+    low_nibble=0xF,
+    addressing_modes=(implied,),
+    mnemonic='HLT'
+    )
+
+mnemonics = [LDA, ADD, SUB, OUT, STA, JMP, HLT, NOP, DMA, OTA, BAI]
+opcode_map = generate_opcode_map(mnemonics)
+
+class Clock():
     def __init__(self, reg_i=None):
         self.reg_i = reg_i
         self.components = []
@@ -276,7 +401,7 @@ class Clock():
 
     def reset(self):
         self.t_state = 0
-        self.microcode = self.fetch
+        self.microcode = fetch_microcode
 
         for c in self.components:
             c.reset()
@@ -304,7 +429,7 @@ class Clock():
             control_word = self.microcode[self.t_state]
         except IndexError:
             self.t_state = 0
-            self.microcode = self.fetch
+            self.microcode = fetch_microcode
             if instructionwise:
                 return
             control_word = self.microcode[self.t_state]
@@ -313,13 +438,19 @@ class Clock():
         if debug:
             if self.t_state == 0:
                 print('-' * 42)
-            print(f"T{self.t_state}: Data: {data}, Control Word: {control_word}")
+                print(f"PCADDRESS: ${data:02X}")
+            if data is not None:
+                print(f"T{self.t_state}: Data: ${data:02X}, Control Word: {control_word}")
+            else:
+                print(f"T{self.t_state}: Data: None, Control Word: {control_word}")
 
         for c in self.components:
             c.clock(data=data, con=control_word)
 
         if self.t_state == 1:
             self.decode(self.reg_i.value)
+            if debug:
+                print(f"OPCODE: ${self.reg_i.value:02X}, MNE: {opcode_map[self.reg_i.value].mne.mnemonic}")
 
         self.t_state += 1
 
@@ -329,22 +460,14 @@ class Clock():
 
     def decode(self, opcode):
         try:
-            new_microcode = self.opcode_map[opcode]
+            new_microcode = opcode_map[opcode].decode()
         except AttributeError:
             print("No reg_i attached")
-            new_microcode = self.NOP
+            new_microcode = opcode_map[0xFE].decode()
         except KeyError:
             print("Trying to execute a non-existant opcode")
-            new_microcode = self.NOP
-        addressing_mode = opcode >> 4
-        if addressing_mode == 0xF: # Implied
-            self.microcode = self.fetch + new_microcode
-        elif addressing_mode == 0x2: # Immediate
-            self.microcode = self.fetch + self.immediate + new_microcode
-        elif addressing_mode == 0x0: # Absolute
-            self.microcode = self.fetch + self.absolute + new_microcode
-        elif addressing_mode == 0x1: # Absolute
-            self.microcode = self.fetch + self.indirect + new_microcode
+            new_microcode = opcode_map[0xFE].decode()
+        self.microcode = new_microcode
 
 class Computer():
     def __init__(self):

@@ -1,7 +1,7 @@
 import pytest # type: ignore
 import numpy as np # type: ignore
 
-from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer
+from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer, AddressingMode, Mnemonic, OpCode, generate_opcode_map
 
 def test_program_counter_increments():
     pc = ProgramCounter()
@@ -312,7 +312,7 @@ def test_clock_can_single_step():
     clock.t_state = 0
 
     # apply single clock cycle
-    clock.step()
+    clock.step(debug=False)
     assert clock.t_state == 1
 
 def test_clock_can_instruction_step():
@@ -328,7 +328,16 @@ def test_clock_can_instruction_step():
     clock.step(instructionwise=True)
     assert clock.t_state == 0
 
-def test_opcode_lda():
+def test_opcode_lda_immediate():
+    pc = Computer()
+    program = [
+        0x20, 0x02, # 0x00 LDA 02H
+        ]
+    pc.switches.load_program(program)
+    pc.step(instructionwise=True, debug=True)
+    assert pc.reg_a.value == 0x02
+
+def test_opcode_lda_absolute():
     pc = Computer()
     program = [
         0x00, 0x02, # 0x00 LDA 02H
@@ -338,7 +347,35 @@ def test_opcode_lda():
     pc.step(instructionwise=True, debug=True)
     assert pc.reg_a.value == 0xCC
 
-def test_opcode_add():
+def test_opcode_lda_indirect():
+    pc = Computer()
+    program = [
+        0x10, 0x02, # 0x00 LDA ($02)
+        0x07,       # 0x02 $07
+        0x22,       # 0x03 $22
+        0x23,       # 0x04 $23
+        0x24,       # 0x05 $24
+        0x25,       # 0x06 $25
+        0x26,       # 0x07 $26
+        0x27,       # 0x08 $27
+        ]
+    pc.switches.load_program(program)
+    program_counter = pc.pc.value
+    pc.step(instructionwise=True, debug=True)
+    assert pc.reg_a.value == 0x26
+    assert program_counter + 2 == pc.pc.value # two byte instruction
+
+def test_opcode_add_immediate():
+    pc = Computer()
+    program = [
+        0x21, 0x3, # 0x00 ADD 02H
+        ]
+    pc.switches.load_program(program)
+    pc.reg_a.value = 0xCC
+    pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0xCF
+
+def test_opcode_add_absolute():
     pc = Computer()
     program = [
         0x01, 0x02, # 0x00 ADD 02H
@@ -363,7 +400,7 @@ def test_opcode_sub():
 def test_opcode_ota():
     pc = Computer()
     program = [
-        0xF3, # 0x00 OTA
+        0xF6, # 0x00 OTA
         ]
     pc.switches.load_program(program)
     pc.reg_a.value = 0xF8
@@ -375,7 +412,7 @@ def test_opcode_program_sequence():
     program = [
         0x00, 0x06, # 0x00 LDA 06H
         0x01, 0x07, # 0x02 ADD 07H
-        0xF3,       # 0x04 OTA
+        0xF6,       # 0x04 OTA
         0xFF,       # 0x05 HLT
         0xA1,       # 0x06 A1H
         0x22,       # 0x07 22H
@@ -393,8 +430,8 @@ def test_opcode_jmp_immediate():
     program = [
         0x00, 0x07, # 0x00 LDA 07H
         0x01, 0x08, # 0x20 ADD 08H
-        0xF3,       # 0x04 OTA
-        0x24, 0x02, # 0x05 JMP $02H
+        0xF6,       # 0x04 OTA
+        0x34, 0x02, # 0x05 JMP $02H
         0x00,       # 0x07 A1H
         0x03,       # 0x08 22H
         ]
@@ -415,48 +452,63 @@ def test_opcode_jmp_immediate():
     assert pc.reg_o.value == 0x09
     pc.step(instructionwise=True)
 
-def test_opcode_sta():
+def test_opcode_sta_absolute():
     pc = Computer()
     program = [
-        0x00, 0x09, # 0x00 LDA 09H
-        0x01, 0x0A, # 0x02 ADD 0AH
-        0xF3,       # 0x04 OTA
-        0x05, 0x0A, # 0x05 STA 0AH
-        0x24, 0x02, # 0x07 JMP $02H
-        0x00,       # 0x09 A1H
-        0x02,       # 0x0A 22H
+        0x20, 0x09, # 0x00 LDA  $09
+        0x35, 0x04, # 0x02 STA  $04
+        0x07,       # 0x04 $22
+        0x23,       # 0x05 $23
+        0x24,       # 0x06 $24
+        0x25,       # 0x07 $25
+        0x26,       # 0x08 $26
+        0x27,       # 0x09 $27
+        0x28,       # 0x0A $28
+        0x29,       # 0x0B $29
         ]
     pc.switches.load_program(program)
     pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0x09
+    
+    program_counter = pc.pc.value
     pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    assert pc.reg_o.value == 0x02
-    pc.step(instructionwise=True)
+    assert program_counter + 2 == pc.pc.value # two byte instruction
 
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    assert pc.reg_o.value == 0x04
-    pc.step(instructionwise=True)
+    assert pc.mar.value == 0x04
+    assert pc.ram.data(con=['er']) == 0x09
 
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    assert pc.reg_o.value == 0x08
-    pc.step(instructionwise=True)
+# ram dumper
+# for k, v in pc.ram.values.items():
+#     print(f"0x{k:02X}: {v:02X}")
 
+def test_opcode_sta_indirect():
+    pc = Computer()
+    program = [
+        0x20, 0x09, # 0x00 LDA  $09
+        0x45, 0x04, # 0x02 STA ($04)
+        0x07,       # 0x04 $22
+        0x23,       # 0x05 $23
+        0x24,       # 0x06 $24
+        0x25,       # 0x07 $25
+        0x26,       # 0x08 $26
+        0x27,       # 0x09 $27
+        0x28,       # 0x0A $28
+        0x29,       # 0x0B $29
+        ]
+    pc.switches.load_program(program)
     pc.step(instructionwise=True)
+    assert pc.reg_a.value == 0x09
+    
+    program_counter = pc.pc.value
     pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    assert pc.reg_o.value == 0x10
-    pc.step(instructionwise=True)
+    assert program_counter + 2 == pc.pc.value # two byte instruction
 
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    pc.step(instructionwise=True)
-    assert pc.reg_o.value == 0x20
-    pc.step(instructionwise=True)
+    assert pc.mar.value == 0x07
+    assert pc.ram.data(con=['er']) == 0x09
+    
+    # don't corrupt other memory
+    pc.mar.clock(data=0x04, con=['lm'])
+    assert pc.ram.data(con=['er']) == 0x07
 
 def test_computer_halts():
     pc = Computer()
@@ -511,4 +563,83 @@ def test_dma_reader_handler():
     assert called == False
     dma.clock(con=['dma'])
     assert called == True
+
+def test_generate_opcode_map_full():
+    adm1 = AddressingMode(
+        arg_fetch_microcode=tuple(),
+        high_nibble=0xF,
+        )
+
+    adm2 = AddressingMode(
+        arg_fetch_microcode=tuple(),
+        high_nibble=0xC,
+        )
+
+    NOP = Mnemonic(
+        operation_microcode=(
+            tuple(),
+            ),
+        low_nibble=0xE,
+        addressing_modes=(adm1, adm2),
+        mnemonic='nop'
+        )
+
+    OP2 = Mnemonic(
+        operation_microcode=(
+            ('conbit',),
+            ),
+        low_nibble=0xD,
+        addressing_modes=(adm1, adm2),
+        mnemonic='npe'
+        )
+
+    target_opcode_map = {
+        0xFE: OpCode(NOP, adm1),
+        0xCE: OpCode(NOP, adm2),
+        0xFD: OpCode(OP2, adm1),
+        0xCD: OpCode(OP2, adm2),
+        }
+
+    opcode_map = generate_opcode_map(mnemonics=[NOP, OP2])
+    
+    assert opcode_map == target_opcode_map
+
+def test_generate_opcode_map_limited_mne():
+    adm1 = AddressingMode(
+        arg_fetch_microcode=tuple(),
+        high_nibble=0xF,
+        )
+
+    adm2 = AddressingMode(
+        arg_fetch_microcode=tuple(),
+        high_nibble=0xC,
+        )
+
+    NOP = Mnemonic(
+        operation_microcode=(
+            tuple(),
+            ),
+        low_nibble=0xE,
+        addressing_modes=(adm1, adm2),
+        mnemonic='nop'
+        )
+
+    OP2 = Mnemonic(
+        operation_microcode=(
+            ('conbit',),
+            ),
+        low_nibble=0xD,
+        addressing_modes=(adm1,),
+        mnemonic='npe'
+        )
+
+    target_opcode_map = {
+        0xFE: OpCode(NOP, adm1),
+        0xCE: OpCode(NOP, adm2),
+        0xFD: OpCode(OP2, adm1),
+        }
+
+    opcode_map = generate_opcode_map(mnemonics=[NOP, OP2])
+    
+    assert opcode_map == target_opcode_map
 
