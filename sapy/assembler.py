@@ -1,6 +1,6 @@
 from typing import List
 
-from .sapy import opcode_map, mnemonics, implied, absolute, absolute_branching, indirect, indirect_branching, immediate
+from sapy import opcode_map, mnemonics, implied, absolute, absolute_branching, indirect, indirect_branching, immediate
 
 
 MNEMONIC = {m.mnemonic:m for m in mnemonics}
@@ -17,7 +17,7 @@ def translate_instruction(instruction: str) -> List[int]:
         opcode = MNEMONIC[instruction]
         return [(implied.high_nibble << 4) + opcode.low_nibble]
 
-    mne_chars, arg = instruction.split(' ', 1)
+    mne_chars, arg = instruction.split(None, 1) # One or more whitespace
     mne = MNEMONIC[mne_chars]
 
     # Should be one or the other
