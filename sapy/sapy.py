@@ -447,7 +447,7 @@ class Clock():
         for c in self.components:
             c.clock(data=data, con=control_word)
 
-        if self.t_state == 1:
+        if self.t_state == 1 and self.reg_i is not None:
             self.decode(self.reg_i.value)
             if debug:
                 print(f"OPCODE: ${self.reg_i.value:02X}, MNE: {opcode_map[self.reg_i.value].mne.mnemonic}")
