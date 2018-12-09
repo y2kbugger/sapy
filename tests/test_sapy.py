@@ -1,7 +1,7 @@
 import pytest # type: ignore
 import numpy as np # type: ignore
 
-from .sapy import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer, AddressingMode, Mnemonic, OpCode, generate_opcode_map
+from sapy.components import Register, Clock, ProgramCounter, MemoryAddressRegister, RandomAccessMemory, SwitchBoard, DMAReader, RegisterA, RegisterB, RegisterOutput, ArithmeticUnit, RegisterInstruction, Computer, AddressingMode, Mnemonic, OpCode, generate_opcode_map
 
 def test_program_counter_increments():
     pc = ProgramCounter()

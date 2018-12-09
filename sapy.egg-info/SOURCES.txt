@@ -1,0 +1,13 @@
+README.rst
+setup.py
+/home/y2k/devel/SAPy/sapy.egg-info/PKG-INFO
+/home/y2k/devel/SAPy/sapy.egg-info/SOURCES.txt
+/home/y2k/devel/SAPy/sapy.egg-info/dependency_links.txt
+/home/y2k/devel/SAPy/sapy.egg-info/top_level.txt
+sapy/__init__.py
+sapy/assembler.py
+sapy/components.py
+sapy.egg-info/PKG-INFO
+sapy.egg-info/SOURCES.txt
+sapy.egg-info/dependency_links.txt
+sapy.egg-info/top_level.txt

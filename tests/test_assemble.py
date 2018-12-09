@@ -1,4 +1,4 @@
-from .assembler import MNEMONIC as M, assemble
+from sapy.assembler import MNEMONIC as M, assemble
 
 def test_implied():
     instructions = ['HLT']
@@ -31,3 +31,7 @@ def test_indirect_branching():
     assert bytecode == [0x44, 0xC2]
 
 # def test_missing_arg_raises()
+# def test_can_split_incoming_assembly_code_string
+# def test_can_deal_with_indented_assembly_code
+# def test_can_deal_with_trailing_comments_in_assembly_code
+# def test_use_lables

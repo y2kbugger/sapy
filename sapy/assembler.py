@@ -1,6 +1,6 @@
 from typing import List
 
-from sapy import opcode_map, mnemonics, implied, absolute, absolute_branching, indirect, indirect_branching, immediate
+from sapy.components import opcode_map, mnemonics, implied, absolute, absolute_branching, indirect, indirect_branching, immediate
 
 
 MNEMONIC = {m.mnemonic:m for m in mnemonics}
@@ -35,17 +35,17 @@ def translate_instruction(instruction: str) -> List[int]:
         if arg[0] == '$':
             arg_addressing_mode = absolute
             arg_val = int(arg[1:], 16)
-        elif arg[0] == '#' and arg[1] == '$': 
+        elif arg[0] == '#' and arg[1] == '$':
             arg_val = int(arg[2:], 16)
             arg_addressing_mode = immediate
-        elif arg[0] == '(' and arg[1] == '$' and arg[-1] == ')': 
+        elif arg[0] == '(' and arg[1] == '$' and arg[-1] == ')':
             arg_val = int(arg[2:-1], 16)
             arg_addressing_mode = indirect
     if any(ad in branching_addressing_modes for ad in ads):
         if arg[0] == '$':
             arg_addressing_mode = absolute_branching
             arg_val = int(arg[1:], 16)
-        elif arg[0] == '(' and arg[1] == '$' and arg[-1] == ')': 
+        elif arg[0] == '(' and arg[1] == '$' and arg[-1] == ')':
             arg_val = int(arg[2:-1], 16)
             arg_addressing_mode = indirect_branching
     assert arg_val <= 0xFF
