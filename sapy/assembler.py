@@ -6,7 +6,7 @@ from sapy.components import opcode_map, mnemonics, implied, absolute, absolute_b
 MNEMONIC = {m.mnemonic:m for m in mnemonics}
 
 def assemble(assembly_text):
-    instructions, labels = preprocess(assembly_text)
+    instructions = preprocess(assembly_text)
     bytecode = translate_instructions(instructions)
     return bytecode
 
@@ -16,9 +16,7 @@ def translate_instructions(instructions):
         bytecode.extend(translate_instruction(i))
     return bytecode
 
-def translate_instruction(instruction, labels=None):
-    if labels is None:
-        labels = dict()
+def translate_instruction(instruction):
 
     # split on one or more whitespace chars
     split_instruction = instruction.split(None, 1)
@@ -65,6 +63,7 @@ def translate_instruction(instruction, labels=None):
             arg_addressing_mode = indirect_branching
         else:
             raise RuntimeError(f"Could not understand argument \"{arg}\"")
+
     assert all(arg_val <= 0xFF for arg_val in arg_list)
     return [(arg_addressing_mode.high_nibble << 4) + mne.low_nibble] + arg_list
 
@@ -72,12 +71,39 @@ def preprocess(assembly_text):
     instructions = []
     labels = dict()
 
+    byte_location = 0x00
     for line in assembly_text.split('\n'):
-        if line.strip() == '':
+        line = line.strip()
+
+        # blank lines
+        if line == '':
             continue
+
         # remove comments
         line = line.split(';', 1)[0]
+        line = line.strip()
 
-        instructions.append(line.strip())
+        # label definition
+        if len(line.split()) == 1 and line[-1] == ':':
+            labels[line[:-1]] = byte_location # all but last char
+            continue
 
-    return instructions, labels
+        try:
+            byte_location += len(translate_instruction(line))
+        except RuntimeError:
+            byte_location += 2 # assume we are dealing with a 2 byte instruction, e.g. an unsubstituted label
+
+
+        instructions.append(line)
+
+    print(labels)
+    label_subbed_instructions = []
+    for i in instructions:
+        for label, label_location in labels.items():
+            i = i.replace(label, f"${label_location:02X}")
+        label_subbed_instructions.append(i)
+
+    print(label_subbed_instructions)
+
+
+    return label_subbed_instructions

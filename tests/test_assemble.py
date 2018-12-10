@@ -34,10 +34,8 @@ def test_can_read_instructions_from_source_assembly():
     assert bytecode == [0x10, 0xC2]
 
 def test_can_split_incoming_source_assembly():
-    code = """
-        LDA ($C2)
-        JMP ($C2)
-    """
+    code = ("LDA ($C2)"
+        "\nJMP ($C2)")
     bytecode = assemble(code)
     assert bytecode == [0x10, 0xC2, 0x44, 0xC2]
 
@@ -49,8 +47,40 @@ def test_can_handle_source_comments():
     bytecode = assemble(code)
     assert bytecode == [0x10, 0xC2, 0x44, 0xC2]
 
+def test_can_deal_with_indented_assembly_code():
+    code = """
+        LDA ($C2)
+        JMP ($C2)
+    """
+    bytecode = assemble(code)
+    assert bytecode == [0x10, 0xC2, 0x44, 0xC2]
+
+def test_use_lables():
+    code = """
+        LDA ($C2)
+        back:
+        JMP back
+    """
+    bytecode = assemble(code)
+    assert bytecode == [0x10, 0xC2, 0x34, 0x02]
+
+def test_lables_with_indirect():
+    code = """
+        LDA ($C2)
+        back:
+        JMP (back)
+    """
+    bytecode = assemble(code)
+    assert bytecode == [0x10, 0xC2, 0x44, 0x02]
+
+def test_lable_defined_after_use():
+    code = """
+        LDA ($C2)
+        JMP (back)
+        LDA ($C2)
+        back:
+    """
+    bytecode = assemble(code)
+    assert bytecode == [0x10, 0xC2, 0x44, 0x06, 0x10, 0xC2,]
 
 # def test_missing_opcode_arg_raises()
-# def test_can_deal_with_indented_assembly_code
-# def test_can_deal_with_trailing_comments_in_assembly_code
-# def test_use_lables

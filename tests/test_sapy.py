@@ -469,7 +469,7 @@ def test_opcode_sta_absolute():
     pc.switches.load_program(program)
     pc.step(instructionwise=True)
     assert pc.reg_a.value == 0x09
-    
+
     program_counter = pc.pc.value
     pc.step(instructionwise=True)
     assert program_counter + 2 == pc.pc.value # two byte instruction
@@ -498,14 +498,14 @@ def test_opcode_sta_indirect():
     pc.switches.load_program(program)
     pc.step(instructionwise=True)
     assert pc.reg_a.value == 0x09
-    
+
     program_counter = pc.pc.value
     pc.step(instructionwise=True)
     assert program_counter + 2 == pc.pc.value # two byte instruction
 
     assert pc.mar.value == 0x07
     assert pc.ram.data(con=['er']) == 0x09
-    
+
     # don't corrupt other memory
     pc.mar.clock(data=0x04, con=['lm'])
     assert pc.ram.data(con=['er']) == 0x07
@@ -601,7 +601,7 @@ def test_generate_opcode_map_full():
         }
 
     opcode_map = generate_opcode_map(mnemonics=[NOP, OP2])
-    
+
     assert opcode_map == target_opcode_map
 
 def test_generate_opcode_map_limited_mne():
@@ -640,6 +640,14 @@ def test_generate_opcode_map_limited_mne():
         }
 
     opcode_map = generate_opcode_map(mnemonics=[NOP, OP2])
-    
+
     assert opcode_map == target_opcode_map
 
+def test_program_counter_wraps():
+    cpu = Computer()
+    program = []
+    cpu.switches.load_program(program)
+
+
+    for _ in range(257):
+        cpu.step()

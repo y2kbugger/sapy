@@ -207,6 +207,9 @@ class DMAReader():
 class AddressingMode:
     arg_fetch_microcode: Tuple[Tuple[str]]
     high_nibble: int
+    def is_my_argtype(arg):
+       # return true if pass argument is of your type
+       raise NotImplementedError
 
 @dataclass
 class Mnemonic:
@@ -215,6 +218,17 @@ class Mnemonic:
     low_nibble: int
     addressing_modes: Tuple[AddressingMode]
     mnemonic: str
+
+    def detect_addressing_mode(arg):
+        detected_modes = []
+        for mode in addressing_modes:
+            if mode.is_my_argtype(arg):
+                detected_modes.append(mode)
+
+        assert not len(detected_modes) > 1, "More than one addressing mode matched for MNE: {self}, arg: {arg}"
+        assert not len(detected_modes) == 0, "No addressing mode matched for MNE: {self}, arg: {arg}"
+        return detected_modes[0]
+
 
 @dataclass
 class OpCode:
