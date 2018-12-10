@@ -66,6 +66,9 @@ class ProgramCounter(Register):
 
         if 'cp' in con and not self.halted:
             self.value += 1
+            # Handel overflows
+            base = 1 << 8 # eight bits
+            self.value = self.value % base
         elif 'lp' in con:
             self.value = data
         elif 'hp' in con:

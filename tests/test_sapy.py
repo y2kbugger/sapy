@@ -645,9 +645,9 @@ def test_generate_opcode_map_limited_mne():
 
 def test_program_counter_wraps():
     cpu = Computer()
-    program = []
+    program = [0xFE] * 256
     cpu.switches.load_program(program)
 
 
-    for _ in range(257):
-        cpu.step()
+    for _ in range(957):
+        cpu.step(debug=False)
