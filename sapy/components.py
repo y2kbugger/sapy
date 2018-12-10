@@ -201,6 +201,9 @@ class DMAReader():
 
     def clock(self, *, data=None, con=[]):
         if 'dma' in con:
+            if self._dma_handler is None:
+                # don't dump the numpy array if set to None
+                return
             self._dma_handler(self.read_ram())
 
     def data(self, con=[]):

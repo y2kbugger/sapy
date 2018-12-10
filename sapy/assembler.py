@@ -12,8 +12,20 @@ def assemble(assembly_text):
 
 def translate_instructions(instructions):
     bytecode = []
+    byte_location = 0x00
     for i in instructions:
-        bytecode.extend(translate_instruction(i))
+        new_bytes = translate_instruction(i)
+        byte_location += len(new_bytes)
+        bytecode.extend(new_bytes)
+        print(f"0x{byte_location:02X}\t", end="")
+        if len(new_bytes) == 1:
+            print(f"{new_bytes[0]:02X}   ", end="")
+        elif len(new_bytes) == 2:
+            print(f"{new_bytes[0]:02X} {new_bytes[0]:02X}", end="")
+        else:
+            raise RuntimeError("not sure how to format the bytecode")
+        print(f"\t # {i}")
+
     return bytecode
 
 def translate_instruction(instruction):
@@ -30,7 +42,6 @@ def translate_instruction(instruction):
         # must handle argument
         mne_chars, arg = split_instruction
         mne = MNEMONIC[mne_chars]
-        print(mne)
 
         # Should be one or the other
         # This could only go wrong with misconfigured mnemonics
@@ -96,14 +107,9 @@ def preprocess(assembly_text):
 
         instructions.append(line)
 
-    print(labels)
     label_subbed_instructions = []
     for i in instructions:
         for label, label_location in labels.items():
             i = i.replace(label, f"${label_location:02X}")
         label_subbed_instructions.append(i)
-
-    print(label_subbed_instructions)
-
-
     return label_subbed_instructions
