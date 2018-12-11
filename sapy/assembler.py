@@ -14,14 +14,14 @@ def translate_instructions(instructions):
     bytecode = []
     byte_location = 0x00
     for i in instructions:
+        print(f"0x{byte_location:02X}\t", end="")
         new_bytes = translate_instruction(i)
         byte_location += len(new_bytes)
         bytecode.extend(new_bytes)
-        print(f"0x{byte_location:02X}\t", end="")
         if len(new_bytes) == 1:
             print(f"{new_bytes[0]:02X}   ", end="")
         elif len(new_bytes) == 2:
-            print(f"{new_bytes[0]:02X} {new_bytes[0]:02X}", end="")
+            print(f"{new_bytes[0]:02X} {new_bytes[1]:02X}", end="")
         else:
             raise RuntimeError("not sure how to format the bytecode")
         print(f"\t # {i}")
