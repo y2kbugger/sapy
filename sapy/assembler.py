@@ -91,8 +91,12 @@ def preprocess(assembly_text):
             continue
 
         # remove comments
-        line = line.split(';', 1)[0]
-        line = line.strip()
+        if line[0] == ';':
+            # full line comment
+            continue
+        else:
+            line = line.split(';', 1)[0]
+            line = line.strip()
 
         # label definition
         if len(line.split()) == 1 and line[-1] == ':':

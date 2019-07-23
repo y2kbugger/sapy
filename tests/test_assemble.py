@@ -47,6 +47,14 @@ def test_can_handle_source_comments():
     bytecode = assemble(code)
     assert bytecode == [0x10, 0xC2, 0x44, 0xC2]
 
+def test_can_handle_full_line_source_comments():
+    code = """
+        ;LDA ($C2)   ; don't know why i do this
+        JMP ($C2)
+    """
+    bytecode = assemble(code)
+    assert bytecode == [0x44, 0xC2]
+
 def test_can_deal_with_indented_assembly_code():
     code = """
         LDA ($C2)
