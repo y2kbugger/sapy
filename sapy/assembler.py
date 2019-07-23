@@ -6,25 +6,26 @@ from sapy.components import opcode_map, mnemonics, implied, absolute, absolute_b
 MNEMONIC = {m.mnemonic:m for m in mnemonics}
 
 def assemble(assembly_text):
-    instructions = preprocess(assembly_text)
-    bytecode = translate_instructions(instructions)
+    instructions, labels = preprocess(assembly_text)
+    bytecode = translate_instructions(instructions, labels)
     return bytecode
 
-def translate_instructions(instructions):
+def translate_instructions(instructions, labels):
     bytecode = []
     byte_location = 0x00
     for i in instructions:
-        print(f"0x{byte_location:02X}\t", end="")
+        try:
+            labelname = ':' + labels[byte_location]
+        except KeyError:
+            # no label
+            labelname = ""
+
         new_bytes = translate_instruction(i)
-        byte_location += len(new_bytes)
         bytecode.extend(new_bytes)
-        if len(new_bytes) == 1:
-            print(f"{new_bytes[0]:02X}   ", end="")
-        elif len(new_bytes) == 2:
-            print(f"{new_bytes[0]:02X} {new_bytes[1]:02X}", end="")
-        else:
-            raise RuntimeError("not sure how to format the bytecode")
-        print(f"\t # {i}")
+        hexdump = ' '.join([f"{new_byte:02X}" for new_byte in new_bytes])
+
+        print(f"0x{byte_location:02X}  {hexdump:8}# {i:10}{labelname}")
+        byte_location += len(new_bytes)
 
     return bytecode
 
@@ -88,6 +89,7 @@ def translate_instruction(instruction):
 def preprocess(assembly_text):
     instructions = []
     labels = dict()
+    labels_lookup = dict() # reverse dict for retrieving the original label
 
     byte_location = 0x00
     for line in assembly_text.split('\n'):
@@ -108,6 +110,7 @@ def preprocess(assembly_text):
         # label definition
         if len(line.split()) == 1 and line[-1] == ':':
             labels[line[:-1]] = byte_location # all but last char
+            labels_lookup[byte_location] = line[:-1] # The reverse dict
             continue
 
         try:
@@ -123,4 +126,4 @@ def preprocess(assembly_text):
         for label, label_location in labels.items():
             i = i.replace(label, f"${label_location:02X}")
         label_subbed_instructions.append(i)
-    return label_subbed_instructions
+    return label_subbed_instructions, labels_lookup
