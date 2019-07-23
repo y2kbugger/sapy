@@ -17,7 +17,7 @@ class Register():
 
     def clock(self, *, data=None, con=[]):
         if self.latch_bit in con:
-            assert not data is None
+            assert not data is None, "Data method should always return a value"
             if not (0x00 <= data <= 0xFF):
                 raise ValueError("data bus is limited to 8 bits")
             self.value = data
@@ -87,6 +87,17 @@ class RegisterOutput(Register):
         super().clock(data=data, con=con)
         if 'lo' in con:
             self.output_function(self.value)
+
+class RegisterInput(Register):
+    def __init__(self):
+        super().__init__(name='c')
+        self.value = 0
+        self.input_function = lambda: int(input(f"Enter a Hexadecimal number 00 <= x <= FF:\n"), 16)
+
+    def data(self, con=[]):
+        if 'ec' in con:
+            self.value = self.input_function()
+        return super().data(con=con)
 
 class RandomAccessMemory():
     def __init__(self, mar):
@@ -376,7 +387,7 @@ OTA = Mnemonic(
 # read Char (8bits) from input to the A register
 BAI = Mnemonic(
     operation_microcode=(
-        ('ec', 'lc'),
+        ('ec', 'la'),
         ),
     low_nibble=0x7,
     addressing_modes=(implied,),
@@ -500,6 +511,7 @@ class Computer():
         self.adder = ArithmeticUnit(self.reg_a, self.reg_b)
 
         self.reg_o = RegisterOutput()
+        self.reg_c = RegisterInput()
         self.reg_i = RegisterInstruction()
 
         self.switches = SwitchBoard(self.ram, self.mar)
@@ -515,6 +527,7 @@ class Computer():
         clock.add_component(self.reg_a)
         clock.add_component(self.reg_b)
         clock.add_component(self.reg_o)
+        clock.add_component(self.reg_c)
         clock.add_component(self.adder)
         clock.add_component(self.dma)
 
