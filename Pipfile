@@ -4,17 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-numpy = "*"
-matplotlib = "*"
 sapy = {editable = true,path = "."}
+numpy = "*"
+bokeh = "*"
+jupyter = "*"
+tornado = "*"
 
 [dev-packages]
-jupyter = "*"
 pytest = "*"
 pytest-xdist = "*"
-neovim = "*"
-ipython = "*"
-pytest-mypy = "*"
+pynvim = "*"
 
 [requires]
 python_version = "3.7"
