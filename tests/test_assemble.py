@@ -1,3 +1,5 @@
+import pytest
+
 from sapy.assembler import MNEMONIC as M, translate_instruction, assemble
 
 def test_implied():
@@ -32,6 +34,26 @@ def test_can_read_instructions_from_source_assembly():
     code = "LDA ($C2)"
     bytecode = assemble(code)
     assert bytecode == [0x10, 0xC2]
+
+def test_the_byte_psedomnemonic_fails_on_bad_syntax():
+    code = "BYTE 11"
+    with pytest.raises(AssertionError):
+        bytecode = assemble(code)
+
+def test_can_use_the_byte_psedomnemonic():
+    code = "BYTE #11"
+    bytecode = assemble(code)
+    assert bytecode == [0x11]
+
+def test_can_use_the_byte_psedomnemonic_2():
+    code = "BYTE #11 22"
+    bytecode = assemble(code)
+    assert bytecode == [0x11, 0x22]
+
+def test_can_use_the_byte_psedomnemonic_3():
+    code = "BYTE #11 22 FD"
+    bytecode = assemble(code)
+    assert bytecode == [0x11, 0x22, 0xFD]
 
 def test_can_split_incoming_source_assembly():
     code = ("LDA ($C2)"

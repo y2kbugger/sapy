@@ -41,6 +41,13 @@ def translate_instruction(instruction):
     else:
         # must handle argument
         mne_chars, arg = split_instruction
+
+        if mne_chars == 'BYTE':
+            assert arg[0] == '#', "BYTES must follow this syntax: \"BYTES #09 33 FA ...\""
+            arg = arg[1:]
+            arg_list = [int(byte, 16) for byte in arg.split()]
+            return arg_list
+
         mne = MNEMONIC[mne_chars]
 
         # Should be one or the other
