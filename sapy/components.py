@@ -142,7 +142,16 @@ class ArithmeticUnit():
 
         # Handel overflows
         base = 1 << 8 # eight bits
-        return a % base
+        result = a % base
+
+        # set the global flag
+        global NZ
+        if result == 0:
+            NZ = False
+        else:
+            NZ = True
+
+        return result
 
 class RegisterInstruction(Register):
     def __init__(self):
@@ -245,7 +254,6 @@ class Mnemonic:
         assert not len(detected_modes) > 1, "More than one addressing mode matched for MNE: {self}, arg: {arg}"
         assert not len(detected_modes) == 0, "No addressing mode matched for MNE: {self}, arg: {arg}"
         return detected_modes[0]
-
 
 @dataclass
 class OpCode:
@@ -364,6 +372,49 @@ JMP = Mnemonic(
     mnemonic='JMP'
     )
 
+class ConditionalMnemonic(Mnemonic):
+    def __init__(self, operation_microcode_true, operation_microcode_false,
+            low_nibble, addressing_modes, mnemonic, test_fxn):
+        super().__init__(
+            operation_microcode=operation_microcode_true,
+            low_nibble=low_nibble,
+            addressing_modes=addressing_modes,
+            mnemonic=mnemonic,
+            )
+
+        self.operation_microcode_true = operation_microcode_true
+        self.operation_microcode_false = operation_microcode_false
+        self.test_fxn = test_fxn
+
+    def __getattribute__(self, name):
+        if name == "operation_microcode":
+            if self.test_fxn():
+                return self.operation_microcode_true
+            else:
+                return self.operation_microcode_false
+        else:
+            return object.__getattribute__(self, name)
+
+
+# # Global Flag for ALU results
+# # NE not equal
+NZ = True
+def not_zero():
+    return NZ
+
+BNZ = ConditionalMnemonic(
+    operation_microcode_true=(
+        ('er', 'lp'),
+        ),
+    operation_microcode_false=(
+        tuple(),
+        ),
+    low_nibble=0x8,
+    addressing_modes=(absolute_branching, indirect_branching),
+    mnemonic='BNZ',
+    test_fxn=not_zero,
+    )
+
 STA = Mnemonic(
     operation_microcode=(
         ('er', 'lm'),
@@ -421,7 +472,7 @@ HLT = Mnemonic(
     mnemonic='HLT'
     )
 
-mnemonics = [LDA, ADD, SUB, OUT, STA, JMP, HLT, NOP, DMA, OTA, BAI]
+mnemonics = [LDA, ADD, SUB, OUT, STA, JMP, BNZ, HLT, NOP, DMA, OTA, BAI]
 opcode_map = generate_opcode_map(mnemonics)
 
 class Clock():
@@ -492,11 +543,12 @@ class Clock():
     def decode(self, opcode):
         try:
             new_microcode = opcode_map[opcode].decode()
-        except AttributeError:
-            print("No reg_i attached")
+        except AttributeError as e:
+            print(e)
+            print("Possibly No reg_i attached")
             new_microcode = opcode_map[0xFE].decode()
         except KeyError:
-            print("Trying to execute a non-existant opcode")
+            print("Non-existant opcode encountered, executing NOP instead.")
             new_microcode = opcode_map[0xFE].decode()
         self.microcode = new_microcode
 
